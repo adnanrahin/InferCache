@@ -1,0 +1,72 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "infercache"
+version = "0.1.0"
+description = "Multi-tier LLM caching and token optimization library targeting 20%+ cost reduction"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [{ name = "InferCache Contributors" }]
+keywords = [
+    "llm",
+    "caching",
+    "semantic-cache",
+    "token-optimization",
+    "openai",
+    "anthropic",
+    "cost-reduction",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = []
+
+[project.optional-dependencies]
+semantic = ["numpy>=1.24"]
+openai = ["openai>=1.0"]
+anthropic = ["anthropic>=0.25"]
+bedrock = ["boto3>=1.34"]
+redis = ["redis>=4.0"]
+all = ["infercache[semantic,openai,anthropic,bedrock,redis]"]
+dev = [
+    "infercache[all]",
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "build>=1.0",
+    "ruff>=0.1",
+]
+
+[project.scripts]
+infercache = "infercache.cli.main:main"
+infercache-mcp = "infercache.mcp.server:run_stdio_server"
+
+[project.urls]
+Homepage = "https://github.com/infercache/infercache"
+Documentation = "https://github.com/infercache/infercache#readme"
+Repository = "https://github.com/infercache/infercache"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/infercache"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/infercache", "README.md", "LICENSE", "docs"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
