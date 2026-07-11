@@ -4,6 +4,8 @@
 
 **Everything runs on your machine.** Cache lives in `~/.infercache/cache.db` (SQLite), embeddings are computed locally, there is no telemetry, no hosted service, and nothing to sign up for. See [docs/PRIVACY.md](docs/PRIVACY.md).
 
+**New here?** Start with **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** — clone/pip install, MCP, gateway, library, and CLI, step by step.
+
 Install from wheel:
 
 ```bash

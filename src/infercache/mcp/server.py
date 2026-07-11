@@ -179,15 +179,19 @@ def run_stdio_server(cache: InferCache | None = None) -> None:
     # stderr is safe for logs; stdout is reserved for protocol messages
     print(f"infercache MCP server v{__version__} ready (stdio)", file=sys.stderr)
 
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            message = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        response = server.handle_message(message)
-        if response is not None:
-            sys.stdout.write(json.dumps(response) + "\n")
-            sys.stdout.flush()
+    try:
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                message = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            response = server.handle_message(message)
+            if response is not None:
+                sys.stdout.write(json.dumps(response) + "\n")
+                sys.stdout.flush()
+    except KeyboardInterrupt:
+        print("infercache MCP server stopped", file=sys.stderr)
+        sys.exit(0)

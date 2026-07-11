@@ -11,7 +11,10 @@ htmlcov/
 .venv/
 venv/
 .env
+.idea/
 *.idea/
+.cursor/
+.vscode/
 *.vscode/
 *.DS_Store
 *.log

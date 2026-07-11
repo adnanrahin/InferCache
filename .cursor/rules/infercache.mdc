@@ -1,0 +1,4 @@
+Before answering questions that may repeat across sessions, call the infercache `cache_lookup` tool first.
+If it returns `"cache_hit": true`, use that `response` instead of calling an LLM again.
+After you generate a new substantive answer, call `cache_store` with the prompt and response.
+You can call `cache_stats` to show savings, and `cache_feedback` if a cached answer was wrong.

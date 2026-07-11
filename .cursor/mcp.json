@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "infercache": {
+      "command": "C:\\Users\\rahin\\.conda\\envs\\infer_cache\\Scripts\\infercache.exe",
+      "args": ["mcp"]
+    }
+  }
+}

@@ -26,8 +26,12 @@ from infercache.integrations.adapters import OllamaAdapter
 #   Option B: pass base_url directly
 OLLAMA_URL = os.environ.get("OLLAMA_HOST", "192.168.1.248:11434")
 
-cache = InferCache(CacheConfig(similarity_threshold=0.55, ttl_seconds=3600))
-adapter = OllamaAdapter(cache=cache, base_url=OLLAMA_URL, default_model="llama3.2")
+cache = InferCache(CacheConfig(similarity_threshold=0.55, ttl_seconds=3600, backend="sqlite"))
+adapter = OllamaAdapter(
+    cache=cache,
+    base_url=OLLAMA_URL,
+    default_model=os.environ.get("OLLAMA_MODEL", "qwen3.5:latest"),
+)
 
 print(f"Ollama server: {adapter.base_url}")
 print("Available models:", adapter.list_models())
