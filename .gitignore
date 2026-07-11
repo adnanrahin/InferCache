@@ -11,3 +11,15 @@ htmlcov/
 .venv/
 venv/
 .env
+*.idea/
+*.vscode/
+*.DS_Store
+*.log
+*.log.*
+*.log.*.*
+*.log.*.*.*
+*.log.*.*.*.*
+*.log.*.*.*.*.*
+*.log.*.*.*.*.*.*
+*.log.*.*.*.*.*.*.*
+*.log.*.*.*.*.*.*.*.*
