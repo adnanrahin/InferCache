@@ -29,7 +29,7 @@ MODEL = os.environ.get("OLLAMA_MODEL", "qwen3.5:latest")
 
 def main() -> None:
     print("=" * 60)
-    print("InferCache × Ollama — token savings demo")
+    print("InferCache x Ollama - token savings demo")
     print("=" * 60)
 
     cache = InferCache(
@@ -82,7 +82,7 @@ def main() -> None:
             path = "CACHE HIT (no Ollama call)"
         else:
             spent += total_tok
-            path = "CACHE MISS → Ollama"
+            path = "CACHE MISS -> Ollama"
 
         results.append((label, hit, total_tok, elapsed_ms, out.get("response", "")[:80]))
 
