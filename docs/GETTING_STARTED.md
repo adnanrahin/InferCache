@@ -97,16 +97,25 @@ print(cache.stats())
 Adapters (optional):
 
 ```python
-from infercache.integrations.adapters import OllamaAdapter, BedrockAdapter, OpenAIAdapter
+from infercache.integrations.adapters import (
+    OllamaAdapter, BedrockAdapter, OpenAIAdapter, LlamaCppAdapter,
+)
 
 # Ollama (local / LAN)
 ollama = OllamaAdapter(base_url="http://192.168.1.248:11434", default_model="qwen3.5:latest")
 print(ollama.chat([{"role": "user", "content": "Hello"}]))
 
+# llama.cpp llama-server (OpenAI-compatible, default port 8080)
+#   llama-server -m model.gguf --port 8080
+llamacpp = LlamaCppAdapter(base_url="http://127.0.0.1:8080", default_model="local")
+print(llamacpp.chat([{"role": "user", "content": "Hello"}]))
+
 # Bedrock  (pip install "infercache[bedrock]")
 bedrock = BedrockAdapter(region_name="us-east-1")
 print(bedrock.chat([{"role": "user", "content": "Hello"}]))
 ```
+
+llama.cpp demos: `examples/llamacpp_example.py`, `examples/demo_llamacpp.py`.
 
 ---
 

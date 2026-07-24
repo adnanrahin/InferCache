@@ -83,10 +83,16 @@ optimized = result.get("optimized_messages")  # pruned + compressed
 ## Provider Adapters
 
 ```python
-from infercache.integrations.adapters import OpenAIAdapter, AnthropicAdapter, GenericAdapter
+from infercache.integrations.adapters import (
+    OpenAIAdapter, AnthropicAdapter, GenericAdapter, LlamaCppAdapter, OllamaAdapter,
+)
 
 # OpenAI (pip install infercache[openai])
 adapter = OpenAIAdapter(default_model="gpt-4o-mini")
+result = adapter.chat([{"role": "user", "content": "Hello"}])
+
+# llama.cpp (llama-server -m model.gguf --port 8080)
+adapter = LlamaCppAdapter(base_url="http://127.0.0.1:8080")
 result = adapter.chat([{"role": "user", "content": "Hello"}])
 
 # Anthropic with cache_control hints
