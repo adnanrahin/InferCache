@@ -34,15 +34,22 @@ class CacheConfig:
 
     min_similarity_for_hit: float = 0.45
     error_rate_target: float = 0.03
+    # Require best semantic score to beat 2nd-best by this margin (safer hits)
+    semantic_score_margin: float = 0.02
+    # Prefer embedding cosine over lexical blend for neural backends
+    prefer_embedding_score: bool = True
 
     backend: Literal["memory", "redis", "sqlite"] = "memory"
     redis_url: str | None = None
     sqlite_path: str = field(default_factory=default_cache_path)
+    persist_metrics: bool = True
 
     # Semantic lookup performance: rank candidates by embedding cosine first,
     # then run full text similarity only on the top-k (GPT Semantic Cache ANN pattern)
     semantic_top_k: int = 32
+    use_vector_index: bool = True
 
+    # tfidf | hash | minilm | sentence-transformers/<model>
     embedding_model: str = "tfidf"
 
     extra: dict = field(default_factory=dict)
@@ -54,3 +61,5 @@ class CacheConfig:
             raise ValueError("compression_ratio must be in (0, 1]")
         if self.max_cache_entries < 1:
             raise ValueError("max_cache_entries must be >= 1")
+        if self.semantic_score_margin < 0:
+            raise ValueError("semantic_score_margin must be >= 0")

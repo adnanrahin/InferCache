@@ -48,11 +48,23 @@ def main(argv: list[str] | None = None) -> int:
     gw_p.add_argument("--redis-url", default=None)
     gw_p.add_argument("--similarity-threshold", type=float, default=0.55)
     gw_p.add_argument("--ttl", type=int, default=3600)
+    gw_p.add_argument(
+        "--embedding",
+        default="tfidf",
+        help="Embedding backend: tfidf | hash | minilm (needs infercache[semantic])",
+    )
+    gw_p.add_argument("--no-vector-index", action="store_true", help="Disable local vector index")
 
     mcp_p = sub.add_parser("mcp", help="Run the MCP server (stdio) for Cursor/Claude/etc.")
     mcp_p.add_argument("--backend", default="sqlite", choices=["memory", "sqlite", "redis"])
     mcp_p.add_argument("--sqlite-path", default=None, help="Default: ~/.infercache/cache.db")
     mcp_p.add_argument("--similarity-threshold", type=float, default=0.55)
+    mcp_p.add_argument(
+        "--embedding",
+        default="tfidf",
+        help="Embedding backend: tfidf | hash | minilm (needs infercache[semantic])",
+    )
+    mcp_p.add_argument("--no-vector-index", action="store_true", help="Disable local vector index")
 
     args = parser.parse_args(argv)
 
@@ -62,6 +74,8 @@ def main(argv: list[str] | None = None) -> int:
         cfg = CacheConfig(
             backend=args.backend,
             similarity_threshold=args.similarity_threshold,
+            embedding_model=args.embedding,
+            use_vector_index=not args.no_vector_index,
         )
         if args.sqlite_path:
             cfg.sqlite_path = args.sqlite_path
@@ -76,6 +90,8 @@ def main(argv: list[str] | None = None) -> int:
             redis_url=args.redis_url,
             similarity_threshold=args.similarity_threshold,
             ttl_seconds=args.ttl,
+            embedding_model=args.embedding,
+            use_vector_index=not args.no_vector_index,
         )
         if args.sqlite_path:
             cache_cfg.sqlite_path = args.sqlite_path

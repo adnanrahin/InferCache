@@ -23,6 +23,8 @@ pip install -e .
 
 # optional extras
 pip install -e ".[openai,anthropic,bedrock]"
+# stronger local embeddings (MiniLM + FAISS when available)
+pip install -e ".[semantic]"
 
 # verify
 infercache --version
@@ -40,12 +42,12 @@ python -m pytest -q
 
 ## Path B — Install from a wheel file
 
-Someone sends you (or you build) `infercache-0.1.0-py3-none-any.whl`.
+Someone sends you (or you build) `infercache-0.2.0-py3-none-any.whl`.
 
 ```bash
-pip install infercache-0.1.0-py3-none-any.whl
+pip install infercache-0.2.0-py3-none-any.whl
 # with extras:
-pip install "infercache-0.1.0-py3-none-any.whl[openai,anthropic,bedrock]"
+pip install "infercache-0.2.0-py3-none-any.whl[openai,anthropic,bedrock,semantic]"
 
 infercache --version
 ```
@@ -56,7 +58,7 @@ infercache --version
 cd InferCache
 pip install build
 python -m build
-# → dist/infercache-0.1.0-py3-none-any.whl
+# → dist/infercache-0.2.0-py3-none-any.whl
 ```
 
 ---
@@ -231,9 +233,12 @@ infercache gateway --port 8899 --openai-upstream http://192.168.1.248:11434
 
 # In front of Anthropic
 infercache gateway --port 8899 --anthropic-upstream https://api.anthropic.com
+
+# Optional: MiniLM embeddings (requires: pip install "infercache[semantic]")
+infercache gateway --port 8899 --openai-upstream http://127.0.0.1:11434 --embedding minilm
 ```
 
-Defaults: binds `127.0.0.1`, SQLite cache at `~/.infercache/cache.db`.
+Defaults: binds `127.0.0.1`, SQLite cache at `~/.infercache/cache.db`. On stream misses, SSE is piped live from upstream while the response is cached.
 
 ### 2. Point your client at it
 
@@ -313,6 +318,33 @@ curl -X POST http://localhost:8080/v1/chat \
 You can run **MCP + Gateway** together — both share the same local SQLite cache.
 
 ---
+
+## v0.2 extras (vector index, cascade, persistent stats)
+
+```python
+from infercache import CacheConfig, CascadeStage, InferCache, ModelCascade
+
+cache = InferCache(CacheConfig(
+    backend="sqlite",
+    use_vector_index=True,       # local ANN over embeddings
+    persist_metrics=True,        # hit/miss counters survive restarts
+    embedding_model="tfidf",     # or "minilm" with infercache[semantic]
+    semantic_score_margin=0.02,  # refuse ambiguous near-ties
+))
+
+# Cheap model first; escalate only when uncertain
+cascade = ModelCascade(cache, [
+    CascadeStage("small", cheap_fn),
+    CascadeStage("big", expensive_fn),
+])
+print(cascade.complete("Explain caching briefly"))
+```
+
+End-to-end Ollama demo:
+
+```bash
+OLLAMA_HOST=127.0.0.1:11434 OLLAMA_MODEL=qwen3.5:latest python examples/demo_e2e_v2.py
+```
 
 ## Privacy reminder
 

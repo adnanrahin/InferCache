@@ -10,7 +10,8 @@ from infercache.core.adaptive import AdaptiveThreshold
 from infercache.core.lookup import CacheLookup
 from infercache.core.store import CacheStore
 from infercache.embeddings import EmbeddingBackend, create_embedding_backend
-from infercache.metrics import CacheMetrics
+from infercache.index import LocalVectorIndex
+from infercache.metrics import CacheMetrics, PersistentMetrics
 from infercache.optimization import PromptOptimizer
 from infercache.optimization.tokens import estimate_tokens
 from infercache.storage import StorageBackend, create_storage
@@ -19,7 +20,7 @@ from infercache.storage import StorageBackend, create_storage
 class InferCache:
     """
     Multi-tier LLM cache combining exact match, semantic similarity,
-    adaptive thresholds, and prompt optimization.
+    adaptive thresholds, vector indexing, and prompt optimization.
     """
 
     def __init__(
@@ -33,11 +34,21 @@ class InferCache:
         self.embedding = embedding or create_embedding_backend(self.config.embedding_model)
         self.storage = storage or create_storage(self.config)
         self.optimizer = PromptOptimizer(self.config)
-        self.metrics = CacheMetrics()
+
+        if self.config.backend == "sqlite" and self.config.persist_metrics:
+            self.metrics: CacheMetrics = PersistentMetrics(self.config.sqlite_path)
+        else:
+            self.metrics = CacheMetrics()
+
         self._adaptive = AdaptiveThreshold(
             self.config.similarity_threshold,
             self.config.error_rate_target,
         )
+        self.vector_index: LocalVectorIndex | None = None
+        if self.config.use_vector_index:
+            self.vector_index = LocalVectorIndex()
+            self._rebuild_index()
+
         self._lookup = CacheLookup(
             self.config,
             self.storage,
@@ -45,8 +56,23 @@ class InferCache:
             self.optimizer,
             self.metrics,
             self._adaptive,
+            self.vector_index,
         )
-        self._store = CacheStore(self.storage, self.embedding, self.optimizer, self._adaptive)
+        self._store = CacheStore(
+            self.storage,
+            self.embedding,
+            self.optimizer,
+            self._adaptive,
+            self.vector_index,
+        )
+
+    def _rebuild_index(self) -> None:
+        if self.vector_index is None:
+            return
+        self.vector_index.clear()
+        for entry in self.storage.list_entries():
+            if entry.embedding:
+                self.vector_index.add(entry.key, entry.embedding)
 
     def lookup(
         self,
@@ -142,14 +168,19 @@ class InferCache:
 
     def clear(self) -> None:
         self.storage.clear()
+        if self.vector_index is not None:
+            self.vector_index.clear()
 
     def stats(self) -> dict[str, Any]:
         return {
             **self.metrics.to_dict(),
             "cache_entries": len(self.storage.list_entries()),
+            "vector_index_size": len(self.vector_index) if self.vector_index else 0,
+            "embedding_model": self.config.embedding_model,
             "config": {
                 "similarity_threshold": self.config.similarity_threshold,
                 "adaptive_threshold": self.config.adaptive_threshold,
                 "compression_ratio": self.config.compression_ratio,
+                "semantic_score_margin": self.config.semantic_score_margin,
             },
         }

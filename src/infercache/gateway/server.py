@@ -1,19 +1,8 @@
 """
-InferCache Gateway — a caching reverse proxy speaking OpenAI and Anthropic wire formats.
+InferCache Gateway — caching reverse proxy (OpenAI + Anthropic wire formats).
 
-Any client that lets you override the API base URL gets transparent caching:
-
-  OpenAI SDK / Cursor / LiteLLM   →  http://localhost:8899/v1  →  upstream OpenAI/Ollama
-  Claude Code (ANTHROPIC_BASE_URL) →  http://localhost:8899     →  upstream Anthropic
-
-Zero dependencies — stdlib http.server + urllib.
-
-Notes:
-- Cache hits are returned instantly; streaming requests are answered with SSE
-  chunks generated from the cached text.
-- On a miss with stream=true, the upstream is called without streaming and the
-  full response is re-chunked to the client as SSE (correct, slightly less
-  incremental than true passthrough).
+On cache miss with stream=true, upstream SSE is piped through live while the
+full answer is collected and stored for later hits.
 """
 
 from __future__ import annotations
@@ -24,7 +13,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import Any, Iterator
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -60,7 +49,6 @@ class _GatewayState:
 
 
 def _messages_cache_repr(body: dict[str, Any]) -> str:
-    """Stable cache representation: model + system + messages (ignore volatile params)."""
     key_fields = {
         "model": body.get("model", ""),
         "messages": body.get("messages", []),
@@ -138,14 +126,29 @@ def _sse_chunks_openai(model: str, text: str, chunk_size: int = 80):
     yield b"data: [DONE]\n\n"
 
 
+def _parse_openai_sse_delta(line: str) -> str:
+    if not line.startswith("data: "):
+        return ""
+    payload = line[6:].strip()
+    if payload == "[DONE]":
+        return ""
+    try:
+        obj = json.loads(payload)
+    except json.JSONDecodeError:
+        return ""
+    choices = obj.get("choices") or []
+    if not choices:
+        return ""
+    delta = choices[0].get("delta") or {}
+    return delta.get("content") or ""
+
+
 def make_handler(state: _GatewayState):
     class GatewayHandler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
 
-        def log_message(self, fmt: str, *args: Any) -> None:  # quiet by default
+        def log_message(self, fmt: str, *args: Any) -> None:
             pass
-
-        # ---------- helpers ----------
 
         def _read_body(self) -> dict[str, Any]:
             length = int(self.headers.get("Content-Length", 0))
@@ -160,7 +163,7 @@ def make_handler(state: _GatewayState):
             self.end_headers()
             self.wfile.write(data)
 
-        def _send_sse(self, chunks) -> None:
+        def _send_sse(self, chunks: Iterator[bytes]) -> None:
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-cache")
@@ -196,10 +199,45 @@ def make_handler(state: _GatewayState):
             except URLError as exc:
                 raise RuntimeError(f"Cannot reach upstream {url}: {exc.reason}") from exc
 
+        def _stream_upstream_openai(
+            self, url: str, body: dict[str, Any]
+        ) -> tuple[Iterator[bytes], list[str]]:
+            """Pipe upstream SSE to client; return collected text pieces."""
+            body = dict(body)
+            body["stream"] = True
+            req = Request(
+                url,
+                data=json.dumps(body).encode(),
+                headers=self._forward_headers(),
+                method="POST",
+            )
+            collected: list[str] = []
+
+            def gen() -> Iterator[bytes]:
+                try:
+                    with urlopen(req, timeout=state.config.upstream_timeout) as resp:
+                        while True:
+                            raw = resp.readline()
+                            if not raw:
+                                break
+                            yield raw
+                            try:
+                                line = raw.decode("utf-8", errors="replace").rstrip("\r\n")
+                            except Exception:
+                                continue
+                            piece = _parse_openai_sse_delta(line)
+                            if piece:
+                                collected.append(piece)
+                except HTTPError as exc:
+                    detail = exc.read().decode(errors="replace")
+                    err = {"error": f"Upstream {exc.code}: {detail[:300]}"}
+                    yield f"data: {json.dumps(err)}\n\n".encode()
+                    yield b"data: [DONE]\n\n"
+
+            return gen(), collected
+
         def _user_scope(self) -> str:
             return self.headers.get("X-InferCache-User", "")
-
-        # ---------- endpoints ----------
 
         def do_GET(self) -> None:
             if self.path in ("/health", "/"):
@@ -209,6 +247,7 @@ def make_handler(state: _GatewayState):
                         "uptime_s": round(time.time() - state.started_at, 1),
                         "openai_upstream": state.config.openai_upstream,
                         "anthropic_upstream": state.config.anthropic_upstream,
+                        "embedding_model": state.cache.config.embedding_model,
                     }
                 )
             elif self.path == "/stats":
@@ -231,7 +270,7 @@ def make_handler(state: _GatewayState):
                     self._send_json({"error": f"unsupported path {self.path}"}, status=404)
             except RuntimeError as exc:
                 self._send_json({"error": str(exc)}, status=502)
-            except Exception as exc:  # keep the proxy alive on malformed requests
+            except Exception as exc:
                 self._send_json({"error": f"gateway error: {exc}"}, status=500)
 
         def _handle_chat_completions(self) -> None:
@@ -253,26 +292,33 @@ def make_handler(state: _GatewayState):
                 return
 
             upstream_url = f"{state.config.openai_upstream.rstrip('/')}/v1/chat/completions"
+
+            if stream:
+                gen, collected = self._stream_upstream_openai(upstream_url, body)
+                self._send_sse(gen)
+                text = "".join(collected)
+                with state.lock:
+                    state.cache.metrics.record_miss(
+                        estimate_tokens(cache_repr) + estimate_tokens(text)
+                    )
+                    if text:
+                        state.cache.store(cache_repr, text, model=model, user=user)
+                return
+
             upstream = self._call_upstream(upstream_url, body)
             text = _extract_openai_text(upstream)
-
             with state.lock:
                 state.cache.metrics.record_miss(
                     estimate_tokens(cache_repr) + estimate_tokens(text)
                 )
                 if text:
                     state.cache.store(cache_repr, text, model=model, user=user)
-
-            if stream:
-                self._send_sse(_sse_chunks_openai(model, text))
-            else:
-                upstream.setdefault("infercache", {})["cache_hit"] = False
-                self._send_json(upstream)
+            upstream.setdefault("infercache", {})["cache_hit"] = False
+            self._send_json(upstream)
 
         def _handle_anthropic_messages(self) -> None:
             body = self._read_body()
             model = body.get("model", "")
-            stream = bool(body.get("stream"))
             cache_repr = _messages_cache_repr(body)
             user = self._user_scope()
 
@@ -280,22 +326,18 @@ def make_handler(state: _GatewayState):
                 cached = state.cache.lookup(cache_repr, model=model, optimize=False, user=user)
 
             if cached.get("cache_hit"):
-                # Anthropic SSE is more involved; return non-streamed JSON, which
-                # most SDKs accept when stream fails over, otherwise disable stream.
                 self._send_json(_anthropic_response(model, cached["response"], cached=True))
                 return
 
             upstream_url = f"{state.config.anthropic_upstream.rstrip('/')}/v1/messages"
             upstream = self._call_upstream(upstream_url, body)
             text = _extract_anthropic_text(upstream)
-
             with state.lock:
                 state.cache.metrics.record_miss(
                     estimate_tokens(cache_repr) + estimate_tokens(text)
                 )
                 if text:
                     state.cache.store(cache_repr, text, model=model, user=user)
-
             upstream.setdefault("infercache", {})["cache_hit"] = False
             self._send_json(upstream)
 
@@ -318,6 +360,7 @@ def run_gateway(config: GatewayConfig | None = None) -> None:
     print(f"  Anthropic         : POST /v1/messages         -> {config.anthropic_upstream}")
     print(f"  Stats             : GET  /stats")
     print(f"  Storage           : {config.cache.backend}")
+    print(f"  Embeddings        : {config.cache.embedding_model}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

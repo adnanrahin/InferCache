@@ -12,4 +12,15 @@ def create_embedding_backend(name: str) -> EmbeddingBackend:
         return HashEmbedding()
     if name == "tfidf":
         return TfidfEmbedding()
-    raise ValueError(f"Unknown embedding backend: {name}")
+    if name in ("minilm", "sentence", "sentence-transformers"):
+        from infercache.embeddings.sentence import SentenceEmbedding
+
+        return SentenceEmbedding()
+    if name.startswith("sentence-transformers/") or "/" in name:
+        from infercache.embeddings.sentence import SentenceEmbedding
+
+        return SentenceEmbedding(model_name=name)
+    raise ValueError(
+        f"Unknown embedding backend: {name}. "
+        "Use tfidf|hash|minilm or a sentence-transformers model id."
+    )

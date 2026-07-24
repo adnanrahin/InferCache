@@ -192,7 +192,7 @@ Measures hit rate, hit/miss latency (avg + p95), tokens saved, and dollars saved
 from infercache import CacheConfig
 
 config = CacheConfig(
-    similarity_threshold=0.85,      # Semantic match threshold
+    similarity_threshold=0.55,      # Semantic match threshold
     adaptive_threshold=True,          # VectorQ/vCache-style adaptation
     enable_prompt_compression=True,   # LLMLingua-inspired compression
     compression_ratio=0.7,            # Keep ~70% of content
@@ -202,13 +202,29 @@ config = CacheConfig(
     ttl_seconds=3600,
     backend="sqlite",                 # local-first default for CLI/MCP/gateway;
                                       # "memory" (per-process) or opt-in "redis"
+    use_vector_index=True,            # local ANN over embeddings
+    persist_metrics=True,             # hit/miss counters in SQLite
+    embedding_model="tfidf",          # or "minilm" with infercache[semantic]
+    semantic_score_margin=0.02,       # refuse ambiguous near-ties
 )
+```
+
+## Model cascade (cheap → expensive)
+
+```python
+from infercache import CascadeStage, InferCache, ModelCascade
+
+cascade = ModelCascade(cache, [
+    CascadeStage("small", cheap_fn),
+    CascadeStage("big", expensive_fn),
+])
+result = cascade.complete("Explain caching briefly")
 ```
 
 ## Architecture
 
 ```
-Request → [Prompt Optimizer] → [Exact Cache] → [Semantic Cache] → LLM API
+Request → [Prompt Optimizer] → [Exact Cache] → [Semantic Cache] → [Cascade?] → LLM API
                 ↓                      ↓ hit              ↓ hit
          compression            return response    return response
          history prune

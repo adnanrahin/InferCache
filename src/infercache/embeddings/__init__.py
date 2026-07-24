@@ -1,5 +1,3 @@
-"""Embedding backends for semantic similarity."""
-
 from infercache.embeddings.base import EmbeddingBackend
 from infercache.embeddings.factory import create_embedding_backend
 from infercache.embeddings.hash import HashEmbedding
@@ -11,3 +9,10 @@ __all__ = [
     "TfidfEmbedding",
     "create_embedding_backend",
 ]
+
+try:
+    from infercache.embeddings.sentence import SentenceEmbedding
+
+    __all__.append("SentenceEmbedding")
+except ImportError:
+    pass
