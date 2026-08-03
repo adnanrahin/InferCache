@@ -281,6 +281,8 @@ pytest
 python -m build
 ```
 
+**CI:** Every PR/push runs [`.github/workflows/build-wheel.yml`](.github/workflows/build-wheel.yml): unit tests first; if they pass, the wheel is built and uploaded as a GitHub Actions artifact. See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) (Path B).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

@@ -75,6 +75,13 @@ python -m build
 # → dist/infercache-0.2.0-py3-none-any.whl
 ```
 
+**CI (GitHub Actions):** every pull request and push to `main` runs [`.github/workflows/build-wheel.yml`](../.github/workflows/build-wheel.yml):
+
+1. Unit tests on Python 3.10 / 3.11 / 3.12  
+2. **Only if tests pass** → build wheel + sdist and upload artifact `infercache-wheel-<commit>`  
+
+Download from the PR’s **Checks → CI → Artifacts**, then: `pip install infercache-*.whl`
+
 ---
 
 ## Path C — Later: install from PyPI
