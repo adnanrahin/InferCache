@@ -75,12 +75,27 @@ python -m build
 # → dist/infercache-0.2.0-py3-none-any.whl
 ```
 
-**CI (GitHub Actions):** every pull request and push to `main` runs [`.github/workflows/build-wheel.yml`](../.github/workflows/build-wheel.yml):
+**CI (GitHub Actions):** every pull request and push to `main`/`master` runs [`.github/workflows/build-wheel.yml`](../.github/workflows/build-wheel.yml):
 
 1. Unit tests on Python 3.10 / 3.11 / 3.12  
 2. **Only if tests pass** → build wheel + sdist and upload artifact `infercache-wheel-<commit>`  
 
 Download from the PR’s **Checks → CI → Artifacts**, then: `pip install infercache-*.whl`
+
+**Auto-release on merge to `main`/`master`:** after tests pass, CI:
+
+1. Picks the **next patch version** (e.g. `v0.2.0` → `v0.2.1`; first release uses `version` in `pyproject.toml`)  
+2. Builds the wheel with that version  
+3. Creates git tag `vX.Y.Z` and a **GitHub Release** with `.whl` + `.tar.gz` attached  
+
+Install from the latest release:
+
+```bash
+# replace OWNER/REPO — example:
+pip install https://github.com/OWNER/InferCache/releases/download/v0.2.1/infercache-0.2.1-py3-none-any.whl
+```
+
+Or open **Releases** on GitHub and download the `.whl`.
 
 ---
 
