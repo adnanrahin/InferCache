@@ -2,6 +2,17 @@
 
 How to use InferCache as a package in your application, with AWS Bedrock, Ollama, and Cursor.
 
+## Current status
+
+| Integration | Status |
+|-------------|--------|
+| **Ollama** | **Tested** |
+| **MCP for Cursor** | **Tested** |
+| Bedrock / OpenAI / Anthropic | Testing in progress |
+| Redis / gateway / other MCP clients | Testing in progress / in progress |
+
+Prefer Ollama and Cursor MCP until other paths are marked tested. See [GETTING_STARTED.md](GETTING_STARTED.md).
+
 ## Mental model
 
 InferCache is **middleware**, not a replacement for your LLM provider.

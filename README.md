@@ -6,6 +6,20 @@
 
 **New here?** Start with **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** — clone/pip install, MCP, gateway, library, and CLI, step by step.
 
+## Current status
+
+| Integration | Status |
+|-------------|--------|
+| **Ollama** (adapter + examples) | **Tested** |
+| **MCP for Cursor** (`cache_lookup` / `cache_store` / …) | **Tested** |
+| MCP for Claude Desktop / Claude Code | Testing in progress |
+| OpenAI / Anthropic / Bedrock adapters | Testing in progress |
+| llama.cpp adapter | Testing in progress |
+| Caching gateway | Testing in progress |
+| Redis backend / FastAPI example / model cascade | In progress |
+
+Start with **Ollama** and **Cursor MCP** — those are the paths we have exercised end-to-end. Other providers and the gateway ship as code/examples but are still being validated.
+
 Install from wheel:
 
 ```bash
@@ -82,22 +96,21 @@ optimized = result.get("optimized_messages")  # pruned + compressed
 
 ## Provider Adapters
 
+**Tested:** `OllamaAdapter`. Others are available but still in testing.
+
 ```python
 from infercache.integrations.adapters import (
     OpenAIAdapter, AnthropicAdapter, GenericAdapter, LlamaCppAdapter, OllamaAdapter,
 )
 
-# OpenAI (pip install infercache[openai])
-adapter = OpenAIAdapter(default_model="gpt-4o-mini")
+# Ollama (tested) — local or LAN
+adapter = OllamaAdapter(base_url="http://127.0.0.1:11434", default_model="qwen2.5:7b")
 result = adapter.chat([{"role": "user", "content": "Hello"}])
 
-# llama.cpp (llama-server -m model.gguf --port 8080)
-adapter = LlamaCppAdapter(base_url="http://127.0.0.1:8080")
-result = adapter.chat([{"role": "user", "content": "Hello"}])
-
-# Anthropic with cache_control hints
-adapter = AnthropicAdapter()
-result = adapter.chat(messages, system="Long static system prompt...")
+# OpenAI / Anthropic / llama.cpp / Bedrock — testing in progress
+# adapter = OpenAIAdapter(default_model="gpt-4o-mini")
+# adapter = LlamaCppAdapter(base_url="http://127.0.0.1:8080")
+# adapter = AnthropicAdapter()
 
 # Any LLM function
 adapter = GenericAdapter()
@@ -152,13 +165,13 @@ infercache stats
 
 ## MCP Server (Cursor / Claude Desktop / Claude Code)
 
-Expose the cache as MCP tools any AI client can call — full setup in [docs/MCP.md](docs/MCP.md):
+**Tested with Cursor.** Claude Desktop / Claude Code: testing in progress. Full setup: [docs/MCP.md](docs/MCP.md).
 
 ```bash
 infercache mcp
 ```
 
-Register in Cursor (`.cursor/mcp.json`) or Claude Desktop:
+Register in Cursor (`~/.cursor/mcp.json` or project `.cursor/mcp.json`):
 
 ```json
 {
@@ -173,7 +186,7 @@ All clients share the same local SQLite cache.
 
 ## Caching Gateway (transparent proxy)
 
-Point any OpenAI/Anthropic-compatible client at the gateway and get caching with zero code changes:
+**Testing in progress.** Point any OpenAI/Anthropic-compatible client at the gateway and get caching with zero code changes:
 
 ```bash
 # Cache in front of OpenAI (or Ollama's OpenAI-compatible endpoint)

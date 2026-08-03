@@ -4,6 +4,9 @@ InferCache ships an MCP (Model Context Protocol) server. Any MCP client —
 Cursor, Claude Desktop, Claude Code, Windsurf — can check the local cache
 before spending tokens and store answers afterwards.
 
+**Status:** **tested with Cursor.** Claude Desktop, Claude Code, and other MCP
+clients are **testing in progress** (same server; client setup not fully validated yet).
+
 Everything runs on your machine: stdio transport, SQLite at
 `~/.infercache/cache.db`, zero network access.
 

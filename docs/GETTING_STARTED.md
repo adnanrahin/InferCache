@@ -2,6 +2,20 @@
 
 InferCache is **local-first**: cache lives on your machine (`~/.infercache/cache.db`), no hosted Redis/cluster required.
 
+## Current status
+
+| Path | Status | Notes |
+|------|--------|--------|
+| **Ollama** adapter + demos | **Tested** | Recommended local LLM path |
+| **MCP in Cursor** | **Tested** | `cache_lookup` / `cache_store` / `cache_stats` / … |
+| MCP in Claude Desktop / Claude Code | Testing in progress | Same server; client setup not fully validated |
+| OpenAI / Anthropic / Bedrock adapters | Testing in progress | Code + examples present |
+| llama.cpp adapter | Testing in progress | Code + examples present |
+| Caching gateway | Testing in progress | Prefer Ollama/MCP until validated |
+| FastAPI example / Redis / model cascade | In progress | Experimental |
+
+**Start here:** install → use **Ollama** and/or **Cursor MCP**. Treat other services as preview until marked tested.
+
 Pick one path below depending on how you want to use it.
 
 ---
@@ -94,28 +108,24 @@ print(result["response"], result["cache_hit"])
 print(cache.stats())
 ```
 
-Adapters (optional):
+Adapters (optional) — **Ollama is tested**; Bedrock / OpenAI / llama.cpp are **testing in progress**:
 
 ```python
 from infercache.integrations.adapters import (
     OllamaAdapter, BedrockAdapter, OpenAIAdapter, LlamaCppAdapter,
 )
 
-# Ollama (local / LAN)
-ollama = OllamaAdapter(base_url="http://192.168.1.248:11434", default_model="qwen3.5:latest")
+# Ollama (tested) — local / LAN
+ollama = OllamaAdapter(base_url="http://127.0.0.1:11434", default_model="qwen2.5:7b")
 print(ollama.chat([{"role": "user", "content": "Hello"}]))
 
-# llama.cpp llama-server (OpenAI-compatible, default port 8080)
-#   llama-server -m model.gguf --port 8080
-llamacpp = LlamaCppAdapter(base_url="http://127.0.0.1:8080", default_model="local")
-print(llamacpp.chat([{"role": "user", "content": "Hello"}]))
-
-# Bedrock  (pip install "infercache[bedrock]")
-bedrock = BedrockAdapter(region_name="us-east-1")
-print(bedrock.chat([{"role": "user", "content": "Hello"}]))
+# llama.cpp / Bedrock — testing in progress
+# llamacpp = LlamaCppAdapter(base_url="http://127.0.0.1:8080", default_model="local")
+# bedrock = BedrockAdapter(region_name="us-east-1")  # pip install "infercache[bedrock]"
 ```
 
-llama.cpp demos: `examples/llamacpp_example.py`, `examples/demo_llamacpp.py`.
+Ollama demos: `examples/ollama_example.py`, `examples/demo_e2e_v2.py`.  
+llama.cpp demos (preview): `examples/llamacpp_example.py`, `examples/demo_llamacpp.py`.
 
 ---
 
@@ -144,6 +154,8 @@ Cache file: `~/.infercache/cache.db` (Windows: `C:\Users\<you>\.infercache\cache
 ---
 
 ## Use case 3 — MCP (Cursor / Claude Desktop / Claude Code)
+
+**Cursor: tested.** Claude Desktop / Claude Code: testing in progress.
 
 MCP lets AI clients call cache tools (`cache_lookup`, `cache_store`, …) before spending tokens.
 
@@ -229,6 +241,8 @@ Full details: [MCP.md](MCP.md)
 
 ## Use case 4 — Gateway (transparent caching proxy)
 
+**Testing in progress** — prefer Ollama adapter or Cursor MCP for validated paths.
+
 Any OpenAI/Anthropic-compatible client can get caching by pointing its **base URL** at InferCache. No code changes in the client.
 
 ### 1. Start the gateway
@@ -298,11 +312,13 @@ curl http://127.0.0.1:8899/stats
 
 ## Use case 5 — FastAPI / your own HTTP API
 
+**In progress** (example app; Ollama path is the one aligned with tested adapters).
+
 ```bash
 pip install fastapi uvicorn
 # edit examples/fastapi_app.py if needed, then:
 set PROVIDER=ollama
-set OLLAMA_HOST=192.168.1.248:11434
+set OLLAMA_HOST=127.0.0.1:11434
 uvicorn examples.fastapi_app:app --port 8080
 ```
 
@@ -316,15 +332,16 @@ curl -X POST http://localhost:8080/v1/chat \
 
 ## Which path should I use?
 
-| Goal | Use |
-|------|-----|
-| Build an app in Python | **Library** (Use case 1) |
-| Quick local experiments | **CLI** (Use case 2) |
-| Cursor / Claude Desktop chat | **MCP** (Use case 3) |
-| Zero client code changes (SDKs, tools) | **Gateway** (Use case 4) |
-| Multi-user product backend | **FastAPI** (Use case 5) |
+| Goal | Use | Status |
+|------|-----|--------|
+| Local LLM + cache in Python | **Ollama adapter** (Use case 1) | **Tested** |
+| Cursor chat caching | **MCP** (Use case 3) | **Tested** |
+| Quick local experiments | **CLI** (Use case 2) | Available |
+| Zero client code changes (SDKs, tools) | **Gateway** (Use case 4) | Testing in progress |
+| Multi-user product backend | **FastAPI** (Use case 5) | In progress |
+| Claude Desktop / Bedrock / OpenAI / llama.cpp | Adapters / MCP docs | Testing in progress |
 
-You can run **MCP + Gateway** together — both share the same local SQLite cache.
+You can run **MCP + Gateway** together when the gateway is ready — both share the same local SQLite cache.
 
 ---
 
