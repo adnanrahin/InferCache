@@ -139,28 +139,86 @@ jobs:
           python -m build
           ls -la dist/
 
+      - name: Verify wheel assets exist
+        id: assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t WHLS < <(ls -1 dist/*.whl)
+          mapfile -t SDISTS < <(ls -1 dist/*.tar.gz)
+          if [[ ${#WHLS[@]} -lt 1 || ${#SDISTS[@]} -lt 1 ]]; then
+            echo "Expected .whl and .tar.gz in dist/ after build" >&2
+            ls -la dist/ || true
+            exit 1
+          fi
+          echo "Found wheel: ${WHLS[0]}"
+          echo "Found sdist: ${SDISTS[0]}"
+          {
+            echo "whl=${WHLS[0]}"
+            echo "sdist=${SDISTS[0]}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload release build as Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: infercache-release-${{ steps.version.outputs.tag }}
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Commit version bump, tag, and push
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add pyproject.toml
-          git commit -m "chore: bump version to ${{ steps.version.outputs.next }} [skip ci]"
-          git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+          # Only commit if pyproject.toml actually changed
+          if git diff --quiet -- pyproject.toml; then
+            echo "No changes to pyproject.toml; skipping commit."
+          else
+            git add pyproject.toml
+            git commit -m "chore: bump version to ${{ steps.version.outputs.next }} [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
 
-          git push origin HEAD:${{ github.ref_name }}
-          git push origin "${{ steps.version.outputs.tag }}"
+          # Create tag if it does not already exist, then push it
+          if git rev-parse -q --verify "refs/tags/${{ steps.version.outputs.tag }}" >/dev/null; then
+            echo "Tag ${{ steps.version.outputs.tag }} already exists; skipping tag creation."
+          else
+            git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+            git push origin "${{ steps.version.outputs.tag }}"
+          fi
 
-      - name: Create GitHub Release with wheel
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: ${{ steps.version.outputs.tag }}
-          files: |
-            dist/*.whl
-            dist/*.tar.gz
-          generate_release_notes: true
-          fail_on_unmatched_files: true
+      # Attach .whl + .tar.gz as Release assets (visible on the Releases page).
+      - name: Create GitHub Release and attach wheel
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.tag }}"
+          WHL="${{ steps.assets.outputs.whl }}"
+          SDIST="${{ steps.assets.outputs.sdist }}"
+
+          test -f "$WHL"
+          test -f "$SDIST"
+
+          NOTES="$(printf '%s\n\n### Install\n\n```bash\npip install %s\n```\n' \
+            "InferCache ${TAG}" \
+            "https://github.com/${{ github.repository }}/releases/download/${TAG}/$(basename "$WHL")")"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists — uploading/replacing assets"
+            gh release upload "$TAG" "$WHL" "$SDIST" --clobber
+            gh release edit "$TAG" --notes "$NOTES"
+          else
+            echo "Creating release $TAG with wheel assets"
+            gh release create "$TAG" "$WHL" "$SDIST" \
+              --title "$TAG" \
+              --notes "$NOTES"
+          fi
+
+          echo "Release assets:"
+          gh release view "$TAG" --json assets --jq '.assets[].name'
