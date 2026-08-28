@@ -39,25 +39,25 @@ class AnthropicAdapter(BaseAdapter):
         **kwargs: Any,
     ) -> dict[str, Any]:
         model = model or self.default_model
-        optimized_msgs, _, _ = self.cache.optimizer.optimize_messages(messages)
-        cache_ready = self.cache.optimizer.build_cache_control_blocks(optimized_msgs)
-
-        system_msgs = [m for m in cache_ready if m.get("role") == "system"]
-        system_text = system or (
-            system_msgs[0].get("content", "")
-            if system_msgs and isinstance(system_msgs[0].get("content"), str)
-            else None
-        )
 
         def call(msgs: list[dict[str, Any]]) -> str:
             client = self._get_client()
-            non_system = [m for m in msgs if m.get("role") != "system"]
+            # cache_control marks the static system prefix for Anthropic's
+            # provider-side prompt cache; applied only to what goes upstream
+            prepared = self.cache.optimizer.build_cache_control_blocks(msgs)
+            non_system = [m for m in prepared if m.get("role") != "system"]
             kwargs_copy = dict(kwargs)
-            if system_text:
-                kwargs_copy["system"] = system_text
+            system_val = system
+            if system_val is None:
+                for m in prepared:
+                    if m.get("role") == "system":
+                        system_val = m.get("content")
+                        break
+            if system_val:
+                kwargs_copy["system"] = system_val
             resp = client.messages.create(model=model, messages=non_system, **kwargs_copy)
             return "".join(getattr(b, "text", str(b)) for b in resp.content)
 
-        result = self.cache.get_or_call_messages(cache_ready, call, model=model)
+        result = self.cache.get_or_call_messages(messages, call, model=model)
         result["provider"] = "anthropic"
         return result

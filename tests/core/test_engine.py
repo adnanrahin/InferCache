@@ -45,3 +45,43 @@ def test_metrics_token_reduction():
     stats = cache.stats()
     assert stats["hit_rate"] == 1.0
     assert stats["exact_hits"] == 5
+
+
+def test_empty_response_is_not_cached():
+    calls = []
+
+    def flaky_llm(prompt: str) -> str:
+        calls.append(prompt)
+        return "" if len(calls) == 1 else "real answer"
+
+    cache = InferCache(CacheConfig(backend="memory"))
+    r1 = cache.get_or_call("question", flaky_llm)
+    r2 = cache.get_or_call("question", flaky_llm)
+    assert r1["response"] == ""
+    assert r2["response"] == "real answer"
+    assert len(calls) == 2  # the empty answer was not served from cache
+
+
+def test_semantic_hit_stays_inside_user_scope():
+    config = CacheConfig(
+        backend="memory",
+        similarity_threshold=0.55,
+        semantic_score_margin=0.0,
+    )
+    cache = InferCache(config=config)
+    cache.store("What is the capital of France?", "Paris", model="m", user="alice")
+
+    other_user = cache.lookup("Tell me France's capital city.", model="m", user="bob")
+    assert other_user["cache_hit"] is False
+
+    same_user = cache.lookup("Tell me France's capital city.", model="m", user="alice")
+    assert same_user["cache_hit"] is True
+
+
+def test_semantic_lookup_respects_model_scope():
+    config = CacheConfig(backend="memory", similarity_threshold=0.55, semantic_score_margin=0.0)
+    cache = InferCache(config=config)
+    cache.store("What is the capital of France?", "Paris")  # stored with model=""
+
+    wrong_model = cache.lookup("Tell me France's capital city.", model="gpt-4o")
+    assert wrong_model["cache_hit"] is False

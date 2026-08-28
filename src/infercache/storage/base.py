@@ -27,3 +27,7 @@ class StorageBackend(ABC):
     @abstractmethod
     def clear(self) -> None:
         raise NotImplementedError
+
+    def count(self) -> int:
+        """Entry count. Backends override when they can do better than a full scan."""
+        return len(self.list_entries())

@@ -54,3 +54,30 @@ def test_cache_with_sqlite_backend(tmp_path):
     result = cache.lookup("hello", model="test")
     assert result["cache_hit"] is True
     assert result["response"] == "world"
+
+
+def test_sqlite_count_matches_entries(tmp_path):
+    storage = SqliteStorage(str(tmp_path / "count.db"))
+    for i in range(4):
+        storage.set(_entry(f"k{i}"))
+    assert storage.count() == 4
+    assert storage.count() == len(storage.list_entries())
+    storage.close()
+
+
+def test_semantic_hit_survives_restart(tmp_path):
+    """IDF state persists, so a paraphrase still hits after a new process."""
+    db = str(tmp_path / "restart.db")
+    config = CacheConfig(
+        backend="sqlite",
+        sqlite_path=db,
+        similarity_threshold=0.55,
+        semantic_score_margin=0.0,
+    )
+    c1 = InferCache(config=config)
+    c1.store("What is the capital of France?", "Paris", model="t")
+
+    c2 = InferCache(config=config)  # fresh engine, same files
+    hit = c2.lookup("Tell me France's capital city.", model="t")
+    assert hit["cache_hit"] is True
+    assert hit["response"] == "Paris"

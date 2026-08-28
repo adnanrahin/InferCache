@@ -61,15 +61,21 @@ class ModelCascade:
                 return hit
 
         optimized = self.cache.optimizer.optimize_prompt(prompt)[0]
-        last: dict[str, Any] | None = None
 
         for i, stage in enumerate(self.stages):
             response = stage.llm_fn(optimized)
             tokens = estimate_tokens(optimized) + estimate_tokens(response)
             self.cache.metrics.record_miss(tokens)
-            self.cache.store(prompt, response, model=stage.model, **kwargs)
 
-            result = {
+            is_last = i == len(self.stages) - 1
+            accepted = is_last or self.escalate_if is None or not self.escalate_if(response)
+            if not accepted:
+                # Rejected answers must never become cache hits
+                continue
+
+            if response and response.strip():
+                self.cache.store(prompt, response, model=stage.model, **kwargs)
+            return {
                 "response": response,
                 "cache_hit": False,
                 "optimized_prompt": optimized,
@@ -78,11 +84,5 @@ class ModelCascade:
                 "escalated": i > 0,
                 "stages_tried": i + 1,
             }
-            last = result
 
-            is_last = i == len(self.stages) - 1
-            if is_last or self.escalate_if is None or not self.escalate_if(response):
-                return result
-
-        assert last is not None
-        return last
+        raise RuntimeError("unreachable: last stage always returns")

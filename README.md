@@ -211,15 +211,15 @@ Measures hit rate, hit/miss latency (avg + p95), tokens saved, and dollars saved
 from infercache import CacheConfig
 
 config = CacheConfig(
-    similarity_threshold=0.55,      # Semantic match threshold
+    similarity_threshold=0.80,      # Semantic match threshold (strict by default)
     adaptive_threshold=True,          # VectorQ/vCache-style adaptation
-    enable_prompt_compression=True,   # LLMLingua-inspired compression
-    compression_ratio=0.7,            # Keep ~70% of content
+    enable_prompt_compression=False,  # Opt-in: lossy compression can change meaning
+    compression_ratio=0.7,            # Keep ~70% of content when enabled
     enable_history_pruning=True,
     max_history_messages=10,
     enable_prefix_optimization=True,  # Static-first for provider caching
-    ttl_seconds=3600,
-    backend="sqlite",                 # local-first default for CLI/MCP/gateway;
+    ttl_seconds=7 * 24 * 3600,        # 7 days
+    backend="sqlite",                 # local-first default everywhere;
                                       # "memory" (per-process) or opt-in "redis"
     use_vector_index=True,            # local ANN over embeddings
     persist_metrics=True,             # hit/miss counters in SQLite
@@ -267,8 +267,8 @@ stats = cache.stats()
 
 | Backend | Persistence | Requires | Default for |
 |---------|-------------|----------|-------------|
-| `sqlite` | `~/.infercache/cache.db` | Nothing (stdlib) | CLI, MCP, gateway |
-| `memory` | Process lifetime | Nothing | Library embedding |
+| `sqlite` | `~/.infercache/cache.db` | Nothing (stdlib) | Everything (library, CLI, MCP, gateway) |
+| `memory` | Process lifetime | Nothing | Opt-in (tests, throwaway scripts) |
 | `redis` | External server | Your own Redis (opt-in only) | Multi-server teams |
 
 No hosted service or cluster is ever required — SQLite covers local use completely.
