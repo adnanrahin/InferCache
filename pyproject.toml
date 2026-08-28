@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "infercache"
-version = "0.2.0"
+version = "0.2.1"
 description = "Local-first LLM caching, semantic matching, cascade routing, and token cost reduction"
 readme = "README.md"
 license = "MIT"
