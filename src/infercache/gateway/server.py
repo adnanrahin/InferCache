@@ -55,7 +55,35 @@ def _messages_cache_repr(body: dict[str, Any]) -> str:
         "system": body.get("system"),
         "tools": body.get("tools"),
     }
-    return json.dumps(key_fields, sort_keys=True)
+    return json.dumps(key_fields, sort_keys=True, separators=(",", ":"))
+
+
+# Sampling params change the answer as much as the messages do, but they are
+# kept out of the semantic text: a temperature=0 request must never match a
+# cached temperature=1 answer, not even as a "similar" one. They ride along
+# as an exact-match scope instead.
+_SAMPLING_FIELDS = (
+    "temperature",
+    "top_p",
+    "top_k",
+    "max_tokens",
+    "max_completion_tokens",
+    "seed",
+    "stop",
+    "stop_sequences",
+    "n",
+    "response_format",
+    "frequency_penalty",
+    "presence_penalty",
+    "tool_choice",
+)
+
+
+def _params_fingerprint(body: dict[str, Any]) -> str:
+    params = {k: body[k] for k in _SAMPLING_FIELDS if k in body}
+    if not params:
+        return ""
+    return json.dumps(params, sort_keys=True, separators=(",", ":"))
 
 
 def _extract_openai_text(response: dict[str, Any]) -> str:
@@ -279,9 +307,12 @@ def make_handler(state: _GatewayState):
             stream = bool(body.get("stream"))
             cache_repr = _messages_cache_repr(body)
             user = self._user_scope()
+            params = _params_fingerprint(body)
 
             with state.lock:
-                cached = state.cache.lookup(cache_repr, model=model, optimize=False, user=user)
+                cached = state.cache.lookup(
+                    cache_repr, model=model, optimize=False, user=user, params=params
+                )
 
             if cached.get("cache_hit"):
                 text = cached["response"]
@@ -301,8 +332,10 @@ def make_handler(state: _GatewayState):
                     state.cache.metrics.record_miss(
                         estimate_tokens(cache_repr) + estimate_tokens(text)
                     )
-                    if text:
-                        state.cache.store(cache_repr, text, model=model, user=user)
+                    if text.strip():
+                        state.cache.store(
+                            cache_repr, text, model=model, user=user, params=params
+                        )
                 return
 
             upstream = self._call_upstream(upstream_url, body)
@@ -311,8 +344,10 @@ def make_handler(state: _GatewayState):
                 state.cache.metrics.record_miss(
                     estimate_tokens(cache_repr) + estimate_tokens(text)
                 )
-                if text:
-                    state.cache.store(cache_repr, text, model=model, user=user)
+                if text.strip():
+                    state.cache.store(
+                        cache_repr, text, model=model, user=user, params=params
+                    )
             upstream.setdefault("infercache", {})["cache_hit"] = False
             self._send_json(upstream)
 
@@ -321,9 +356,12 @@ def make_handler(state: _GatewayState):
             model = body.get("model", "")
             cache_repr = _messages_cache_repr(body)
             user = self._user_scope()
+            params = _params_fingerprint(body)
 
             with state.lock:
-                cached = state.cache.lookup(cache_repr, model=model, optimize=False, user=user)
+                cached = state.cache.lookup(
+                    cache_repr, model=model, optimize=False, user=user, params=params
+                )
 
             if cached.get("cache_hit"):
                 self._send_json(_anthropic_response(model, cached["response"], cached=True))
@@ -336,8 +374,10 @@ def make_handler(state: _GatewayState):
                 state.cache.metrics.record_miss(
                     estimate_tokens(cache_repr) + estimate_tokens(text)
                 )
-                if text:
-                    state.cache.store(cache_repr, text, model=model, user=user)
+                if text.strip():
+                    state.cache.store(
+                        cache_repr, text, model=model, user=user, params=params
+                    )
             upstream.setdefault("infercache", {})["cache_hit"] = False
             self._send_json(upstream)
 

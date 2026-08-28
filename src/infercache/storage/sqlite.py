@@ -24,6 +24,22 @@ CREATE TABLE IF NOT EXISTS cache_entries (
 CREATE INDEX IF NOT EXISTS idx_created_at ON cache_entries (created_at);
 """
 
+# Connection-scoped tuning. WAL lets readers run during writes, NORMAL skips
+# the per-commit fsync (WAL stays corruption-safe), the rest cut disk round
+# trips on the hot path.
+_PRAGMAS = (
+    "PRAGMA journal_mode=WAL",
+    "PRAGMA synchronous=NORMAL",
+    "PRAGMA busy_timeout=5000",
+    "PRAGMA cache_size=-16000",
+    "PRAGMA temp_store=MEMORY",
+)
+
+
+def tune_connection(conn: sqlite3.Connection) -> None:
+    for pragma in _PRAGMAS:
+        conn.execute(pragma)
+
 
 class SqliteStorage(StorageBackend):
     """Durable local cache. Good default for local installs and the gateway."""
@@ -39,6 +55,7 @@ class SqliteStorage(StorageBackend):
         self.ttl_seconds = ttl_seconds
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(path, check_same_thread=False)
+        tune_connection(self._conn)
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
 
@@ -118,6 +135,17 @@ class SqliteStorage(StorageBackend):
                 " adaptive_threshold FROM cache_entries"
             )
             return [self._row_to_entry(row) for row in cur.fetchall()]
+
+    def count(self) -> int:
+        with self._lock:
+            cutoff = self._expired_cutoff()
+            if cutoff is None:
+                cur = self._conn.execute("SELECT COUNT(*) FROM cache_entries")
+            else:
+                cur = self._conn.execute(
+                    "SELECT COUNT(*) FROM cache_entries WHERE created_at >= ?", (cutoff,)
+                )
+            return int(cur.fetchone()[0])
 
     def clear(self) -> None:
         with self._lock:

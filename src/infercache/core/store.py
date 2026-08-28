@@ -41,7 +41,8 @@ class CacheStore:
         optimized_prompt, _, _ = self.optimizer.optimize_prompt(prompt)
         key = make_exact_key(optimized_prompt, model=model, **kwargs)
         emb = self.embedding.embed(optimized_prompt)
-        meta = {"model": model, **(metadata or {})}
+        # kwargs scope the exact key, so they must scope semantic matches too
+        meta = {"model": model, **kwargs, **(metadata or {})}
         entry = CacheEntry(
             key=key,
             prompt=optimized_prompt,

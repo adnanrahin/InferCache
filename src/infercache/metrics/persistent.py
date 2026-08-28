@@ -7,6 +7,7 @@ import threading
 from typing import Any
 
 from infercache.metrics.collector import CacheMetrics
+from infercache.storage.sqlite import tune_connection
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS metrics (
@@ -34,6 +35,7 @@ class PersistentMetrics(CacheMetrics):
         self.path = path
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(path, check_same_thread=False)
+        tune_connection(self._conn)
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
         self._load()

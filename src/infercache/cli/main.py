@@ -29,6 +29,7 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("stats", help="Show cache statistics")
     sub.add_parser("clear", help="Clear all cache entries")
+    sub.add_parser("demo", help="Watch the cache save a repeated request (no API key needed)")
 
     bench_p = sub.add_parser("benchmark", help="Measure hit rate, latency, and cost savings")
     bench_p.add_argument("--queries", type=int, default=200)
@@ -46,8 +47,10 @@ def main(argv: list[str] | None = None) -> int:
     gw_p.add_argument("--backend", default="sqlite", choices=["memory", "sqlite", "redis"])
     gw_p.add_argument("--sqlite-path", default=None, help="Default: ~/.infercache/cache.db")
     gw_p.add_argument("--redis-url", default=None)
-    gw_p.add_argument("--similarity-threshold", type=float, default=0.55)
-    gw_p.add_argument("--ttl", type=int, default=3600)
+    gw_p.add_argument("--similarity-threshold", type=float, default=None,
+                      help="Semantic match threshold (default: config default)")
+    gw_p.add_argument("--ttl", type=int, default=None,
+                      help="Entry lifetime in seconds (default: 7 days)")
     gw_p.add_argument(
         "--embedding",
         default="tfidf",
@@ -58,7 +61,8 @@ def main(argv: list[str] | None = None) -> int:
     mcp_p = sub.add_parser("mcp", help="Run the MCP server (stdio) for Cursor/Claude/etc.")
     mcp_p.add_argument("--backend", default="sqlite", choices=["memory", "sqlite", "redis"])
     mcp_p.add_argument("--sqlite-path", default=None, help="Default: ~/.infercache/cache.db")
-    mcp_p.add_argument("--similarity-threshold", type=float, default=0.55)
+    mcp_p.add_argument("--similarity-threshold", type=float, default=None,
+                       help="Semantic match threshold (default: config default)")
     mcp_p.add_argument(
         "--embedding",
         default="tfidf",
@@ -73,10 +77,11 @@ def main(argv: list[str] | None = None) -> int:
 
         cfg = CacheConfig(
             backend=args.backend,
-            similarity_threshold=args.similarity_threshold,
             embedding_model=args.embedding,
             use_vector_index=not args.no_vector_index,
         )
+        if args.similarity_threshold is not None:
+            cfg.similarity_threshold = args.similarity_threshold
         if args.sqlite_path:
             cfg.sqlite_path = args.sqlite_path
         run_stdio_server(cache=InferCache(config=cfg))
@@ -88,11 +93,13 @@ def main(argv: list[str] | None = None) -> int:
         cache_cfg = CacheConfig(
             backend=args.backend,
             redis_url=args.redis_url,
-            similarity_threshold=args.similarity_threshold,
-            ttl_seconds=args.ttl,
             embedding_model=args.embedding,
             use_vector_index=not args.no_vector_index,
         )
+        if args.similarity_threshold is not None:
+            cache_cfg.similarity_threshold = args.similarity_threshold
+        if args.ttl is not None:
+            cache_cfg.ttl_seconds = args.ttl
         if args.sqlite_path:
             cache_cfg.sqlite_path = args.sqlite_path
         run_gateway(
@@ -130,6 +137,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"\nReport written to {args.output}")
         return 0
 
+    if args.command == "demo":
+        return _run_demo()
+
     cache = InferCache(config=CacheConfig(backend="sqlite"))
 
     if args.command == "lookup":
@@ -151,6 +161,36 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     return 1
+
+
+def _run_demo() -> int:
+    """Offline walkthrough: the second identical request skips the 'LLM'."""
+    import time
+
+    from infercache.optimization.tokens import estimate_tokens
+
+    calls = {"n": 0}
+
+    def pretend_llm(prompt: str) -> str:
+        calls["n"] += 1
+        time.sleep(0.4)  # stand-in for real API latency
+        return "A cache stores answers so repeated questions cost nothing."
+
+    cache = InferCache(config=CacheConfig(backend="memory"))
+    prompt = "What is a cache, in one sentence?"
+
+    print("InferCache demo - no API key, nothing leaves this machine\n")
+    for label in ("First ask ", "Same ask  "):
+        t0 = time.perf_counter()
+        result = cache.get_or_call(prompt, pretend_llm, model="demo")
+        ms = (time.perf_counter() - t0) * 1000
+        status = "HIT  (free)" if result["cache_hit"] else "MISS (paid)"
+        print(f"  {label}: {status}  {ms:6.0f} ms   {result['response']}")
+
+    tokens = estimate_tokens(prompt) + estimate_tokens(result["response"])
+    print(f"\n  LLM was called {calls['n']} time. The repeat saved ~{tokens} tokens.")
+    print("  Point your apps at `infercache gateway` to get this on every request.")
+    return 0
 
 
 if __name__ == "__main__":

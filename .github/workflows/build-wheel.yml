@@ -127,10 +127,13 @@ jobs:
           echo "tag=v${next}" >> "$GITHUB_OUTPUT"
           echo "Next release: v${next} (previous: ${latest:-none})"
 
-      - name: Bump version in pyproject.toml
+      - name: Bump version in pyproject.toml and __version__.py
         run: |
           sed -i 's/^version = ".*"/version = "${{ steps.version.outputs.next }}"/' pyproject.toml
           grep '^version =' pyproject.toml
+          ver="${{ steps.version.outputs.next }}"
+          printf '"""%s"""\n\n__version__ = "%s"\n' "$ver" "$ver" > src/infercache/__version__.py
+          cat src/infercache/__version__.py
 
       - name: Install build tools & build
         run: |
@@ -174,11 +177,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Only commit if pyproject.toml actually changed
-          if git diff --quiet -- pyproject.toml; then
-            echo "No changes to pyproject.toml; skipping commit."
+          # Only commit if version files actually changed
+          if git diff --quiet -- pyproject.toml src/infercache/__version__.py; then
+            echo "No version changes; skipping commit."
           else
-            git add pyproject.toml
+            git add pyproject.toml src/infercache/__version__.py
             git commit -m "chore: bump version to ${{ steps.version.outputs.next }} [skip ci]"
             git push origin HEAD:${{ github.ref_name }}
           fi

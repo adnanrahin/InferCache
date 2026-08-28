@@ -53,3 +53,6 @@ class MemoryStorage(StorageBackend):
 
     def clear(self) -> None:
         self._store.clear()
+
+    def count(self) -> int:
+        return len(self._store)

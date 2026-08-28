@@ -49,7 +49,18 @@ class CacheLookup:
             return self.embedding.similarity(query_emb, entry.embedding)
         return self.embedding.text_similarity(query, entry.prompt)
 
-    def semantic_lookup(self, prompt: str, model: str = "") -> CacheEntry | None:
+    @staticmethod
+    def _in_scope(entry: CacheEntry, model: str, scope: dict) -> bool:
+        """Entry must match the same fields that scope the exact key."""
+        meta = entry.metadata or {}
+        if meta.get("model", "") != model:
+            return False
+        for k, v in scope.items():
+            if meta.get(k) != v:
+                return False
+        return True
+
+    def semantic_lookup(self, prompt: str, model: str = "", **scope) -> CacheEntry | None:
         query_emb = self.embedding.embed(prompt)
         threshold = self.config.similarity_threshold
         if self.config.adaptive_threshold:
@@ -61,9 +72,7 @@ class CacheLookup:
         if self.vector_index is not None and len(self.vector_index) > 0:
             for entry_id, _ in self.vector_index.search(query_emb, self.config.semantic_top_k):
                 entry = self.storage.get(entry_id)
-                if entry is None:
-                    continue
-                if entry.metadata and entry.metadata.get("model") and entry.metadata["model"] != model:
+                if entry is None or not self._in_scope(entry, model, scope):
                     continue
                 candidates.append(entry)
         else:
@@ -71,7 +80,7 @@ class CacheLookup:
             for entry in self.storage.list_entries():
                 if not entry.embedding:
                     continue
-                if entry.metadata and entry.metadata.get("model") and entry.metadata["model"] != model:
+                if not self._in_scope(entry, model, scope):
                     continue
                 scored.append((self.embedding.similarity(query_emb, entry.embedding), entry))
             scored.sort(key=lambda x: x[0], reverse=True)
@@ -124,7 +133,7 @@ class CacheLookup:
                 "optimized_prompt": optimized_prompt,
             }
 
-        semantic = self.semantic_lookup(optimized_prompt, model=model)
+        semantic = self.semantic_lookup(optimized_prompt, model=model, **kwargs)
         if semantic:
             tokens = estimate_tokens(prompt) + estimate_tokens(semantic.response)
             self.metrics.record_hit("semantic", tokens)

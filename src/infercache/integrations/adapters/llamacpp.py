@@ -118,14 +118,11 @@ class LlamaCppAdapter(BaseAdapter):
         **kwargs: Any,
     ) -> dict[str, Any]:
         model = model or self.default_model
-        optimized = self.cache.optimizer.build_cache_control_blocks(
-            self.cache.optimizer.optimize_messages(messages)[0]
-        )
 
         def call(msgs: list[dict[str, Any]]) -> str:
             return self._chat_uncached(msgs, model, **kwargs)
 
-        result = self.cache.get_or_call_messages(optimized, call, model=model)
+        result = self.cache.get_or_call_messages(messages, call, model=model)
         result["provider"] = "llamacpp"
         return result
 

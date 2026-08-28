@@ -107,3 +107,36 @@ def test_gateway_health(gateway_url):
     with urllib.request.urlopen(f"{gateway_url}/health", timeout=10) as resp:
         health = json.loads(resp.read().decode())
     assert health["status"] == "ok"
+
+
+def _post_chat_with(url: str, prompt: str, **extra) -> dict:
+    body = json.dumps(
+        {
+            "model": "mock-model",
+            "messages": [{"role": "user", "content": prompt}],
+            **extra,
+        }
+    ).encode()
+    req = urllib.request.Request(
+        f"{url}/v1/chat/completions",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read().decode())
+
+
+def test_gateway_key_includes_sampling_params(gateway_url):
+    r1 = _post_chat_with(gateway_url, "sampling probe", temperature=0)
+    assert r1["infercache"]["cache_hit"] is False
+
+    # Different temperature -> different answer space -> must not hit
+    r2 = _post_chat_with(gateway_url, "sampling probe", temperature=1)
+    assert r2["infercache"]["cache_hit"] is False
+    assert UPSTREAM_CALLS["count"] == 2
+
+    # Same temperature repeats -> hit
+    r3 = _post_chat_with(gateway_url, "sampling probe", temperature=0)
+    assert r3["infercache"]["cache_hit"] is True
+    assert UPSTREAM_CALLS["count"] == 2

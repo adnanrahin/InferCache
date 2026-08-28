@@ -95,3 +95,28 @@ def test_cascade_escalates_on_uncertain():
     assert result["model_used"] == "big"
     assert calls == ["cheap", "expensive"]
     assert result["escalated"] is True
+
+
+def test_cascade_does_not_cache_rejected_answers():
+    calls = []
+
+    def cheap(p: str) -> str:
+        calls.append("cheap")
+        return "I am not sure."
+
+    def expensive(p: str) -> str:
+        calls.append("expensive")
+        return "Here is a confident full answer about the topic."
+
+    cache = InferCache(CacheConfig(backend="memory"))
+    cascade = ModelCascade(
+        cache,
+        [CascadeStage("small", cheap), CascadeStage("big", expensive)],
+    )
+    cascade.complete("Hard question")
+
+    # The rejected "I am not sure" must not be a hit; the accepted answer is
+    again = cascade.complete("Hard question")
+    assert again["cache_hit"] is True
+    assert again["response"] == "Here is a confident full answer about the topic."
+    assert calls == ["cheap", "expensive"]

@@ -138,7 +138,7 @@ infercache mcp --backend sqlite --sqlite-path D:\my\cache.db --similarity-thresh
 |------|---------|-------|
 | `--backend` | `sqlite` | `memory` = non-persistent, `redis` = opt-in only |
 | `--sqlite-path` | `~/.infercache/cache.db` | Shared across all MCP clients |
-| `--similarity-threshold` | `0.55` | Raise for stricter semantic matching |
+| `--similarity-threshold` | `0.80` | Raise for stricter semantic matching |
 
 Because all clients default to the same SQLite file, an answer cached from
 Claude Desktop is also a cache hit in Cursor.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Callable
 
 from infercache.config import CacheConfig
@@ -31,7 +32,14 @@ class InferCache:
     ) -> None:
         self.config = config or CacheConfig()
         self.config.validate()
-        self.embedding = embedding or create_embedding_backend(self.config.embedding_model)
+        # Persist embedding state next to the sqlite cache so vectors stored
+        # today still match queries embedded after a restart
+        state_dir = None
+        if self.config.backend == "sqlite":
+            state_dir = os.path.dirname(self.config.sqlite_path) or "."
+        self.embedding = embedding or create_embedding_backend(
+            self.config.embedding_model, state_dir
+        )
         self.storage = storage or create_storage(self.config)
         self.optimizer = PromptOptimizer(self.config)
 
@@ -108,7 +116,8 @@ class InferCache:
         response = llm_fn(optimized)
         tokens = estimate_tokens(optimized) + estimate_tokens(response)
         self.metrics.record_miss(tokens)
-        self.store(prompt, response, model=model, **kwargs)
+        if response and response.strip():
+            self.store(prompt, response, model=model, **kwargs)
         return {
             "response": response,
             "cache_hit": False,
@@ -153,7 +162,8 @@ class InferCache:
         response = llm_fn(optimized)
         tokens = after + estimate_tokens(response)
         self.metrics.record_miss(tokens)
-        self.store(prompt_repr, response, model=model)
+        if response and response.strip():
+            self.store(prompt_repr, response, model=model)
         return {
             "response": response,
             "cache_hit": False,
@@ -174,7 +184,7 @@ class InferCache:
     def stats(self) -> dict[str, Any]:
         return {
             **self.metrics.to_dict(),
-            "cache_entries": len(self.storage.list_entries()),
+            "cache_entries": self.storage.count(),
             "vector_index_size": len(self.vector_index) if self.vector_index else 0,
             "embedding_model": self.config.embedding_model,
             "config": {
