@@ -2,8 +2,8 @@
 
 from infercache.benchmark.datasets import load_jsonl, synthetic_workload
 from infercache.benchmark.pricing import cost_usd, get_pricing
-from infercache.benchmark.runner import BenchmarkResult, run_cache_benchmark
 from infercache.benchmark.report import to_markdown
+from infercache.benchmark.runner import BenchmarkResult, run_cache_benchmark
 
 __all__ = [
     "BenchmarkResult",

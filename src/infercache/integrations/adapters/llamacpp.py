@@ -89,13 +89,10 @@ class LlamaCppAdapter(BaseAdapter):
                 return json.loads(body) if body else {}
         except HTTPError as exc:
             detail = exc.read().decode(errors="replace")[:500]
-            raise ConnectionError(
-                f"llama-server {exc.code} at {self.base_url}{path}: {detail}"
-            ) from exc
+            raise ConnectionError(f"llama-server {exc.code} at {self.base_url}{path}: {detail}") from exc
         except URLError as exc:
             raise ConnectionError(
-                f"Cannot reach llama-server at {self.base_url}. "
-                "Start it with: llama-server -m model.gguf --port 8080"
+                f"Cannot reach llama-server at {self.base_url}. Start it with: llama-server -m model.gguf --port 8080"
             ) from exc
 
     def _chat_uncached(self, messages: list[dict[str, Any]], model: str, **kwargs: Any) -> str:

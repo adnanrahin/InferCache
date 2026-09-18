@@ -23,7 +23,4 @@ def create_embedding_backend(name: str, state_dir: str | None = None) -> Embeddi
         from infercache.embeddings.sentence import SentenceEmbedding
 
         return SentenceEmbedding(model_name=name)
-    raise ValueError(
-        f"Unknown embedding backend: {name}. "
-        "Use tfidf|hash|minilm or a sentence-transformers model id."
-    )
+    raise ValueError(f"Unknown embedding backend: {name}. Use tfidf|hash|minilm or a sentence-transformers model id.")

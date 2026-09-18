@@ -39,15 +39,21 @@ class BenchmarkResult:
     @property
     def cost_saved_usd(self) -> float:
         return cost_usd(
-            self.model, self.input_tokens_saved, self.output_tokens_saved,
-            self.input_price, self.output_price,
+            self.model,
+            self.input_tokens_saved,
+            self.output_tokens_saved,
+            self.input_price,
+            self.output_price,
         )
 
     @property
     def cost_spent_usd(self) -> float:
         return cost_usd(
-            self.model, self.input_tokens_spent, self.output_tokens_spent,
-            self.input_price, self.output_price,
+            self.model,
+            self.input_tokens_spent,
+            self.output_tokens_spent,
+            self.input_price,
+            self.output_price,
         )
 
     @property

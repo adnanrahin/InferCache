@@ -80,15 +80,16 @@ def chat(req: ChatRequest) -> ChatResponse:
     """
     InferCache sits between your users and the LLM.
 
-    user_id is included in the cache key so each user gets isolated entries.
+    Scope cache entries per user by encoding user_id into the model key
+    (get_or_call_messages does not take a separate user_id kwarg).
     """
     messages = req.messages or [{"role": "user", "content": req.prompt or ""}]
+    model_key = f"{adapter.default_model}:{req.user_id}"
 
     result = cache.get_or_call_messages(
         messages,
         llm_call,
-        model=adapter.default_model,
-        user_id=req.user_id,
+        model=model_key,
     )
 
     return ChatResponse(

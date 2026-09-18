@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Sequence
+from collections.abc import Sequence
 
 try:
     import numpy as _np
@@ -107,11 +107,7 @@ class LocalVectorIndex:
             v = _np.asarray([query], dtype=_np.float32)
             _faiss.normalize_L2(v)
             scores, indices = self._faiss.search(v, k)
-            return [
-                (self._ids[int(i)], float(s))
-                for s, i in zip(scores[0], indices[0])
-                if i >= 0
-            ]
+            return [(self._ids[int(i)], float(s)) for s, i in zip(scores[0], indices[0]) if i >= 0]
 
         if _np is not None:
             if self._matrix is None or self._dirty:
@@ -129,10 +125,7 @@ class LocalVectorIndex:
             top = top[_np.argsort(scores[top])[::-1]]
             return [(self._ids[int(i)], float(scores[int(i)])) for i in top]
 
-        scored = [
-            (entry_id, _cosine(query, vec))
-            for entry_id, vec in zip(self._ids, self._vectors)
-        ]
+        scored = [(entry_id, _cosine(query, vec)) for entry_id, vec in zip(self._ids, self._vectors)]
         scored.sort(key=lambda x: x[1], reverse=True)
         return scored[:k]
 

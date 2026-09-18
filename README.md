@@ -12,13 +12,15 @@
 |-------------|--------|
 | **Ollama** (adapter + examples) | **Tested** |
 | **MCP for Cursor** (`cache_lookup` / `cache_store` / …) | **Tested** |
+| **Caching gateway** (in front of Ollama) | **Tested** |
 | MCP for Claude Desktop / Claude Code | Testing in progress |
 | OpenAI / Anthropic / Bedrock adapters | Testing in progress |
 | llama.cpp adapter | Testing in progress |
-| Caching gateway | Testing in progress |
 | Redis backend / FastAPI example / model cascade | In progress |
 
 Start with **Ollama** and **Cursor MCP** — those are the paths we have exercised end-to-end. Other providers and the gateway ship as code/examples but are still being validated.
+
+**Bedrock how-to:** [docs/TESTING_BEDROCK.md](docs/TESTING_BEDROCK.md).
 
 Install from wheel:
 

@@ -1,4 +1,4 @@
-""" Backward compatibility — use infercache.integrations.adapters instead."""
+"""Backward compatibility — use infercache.integrations.adapters instead."""
 
 from infercache.integrations.adapters import (
     AnthropicAdapter,

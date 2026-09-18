@@ -11,9 +11,10 @@ import json
 import threading
 import time
 import uuid
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Iterator
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -227,9 +228,7 @@ def make_handler(state: _GatewayState):
             except URLError as exc:
                 raise RuntimeError(f"Cannot reach upstream {url}: {exc.reason}") from exc
 
-        def _stream_upstream_openai(
-            self, url: str, body: dict[str, Any]
-        ) -> tuple[Iterator[bytes], list[str]]:
+        def _stream_upstream_openai(self, url: str, body: dict[str, Any]) -> tuple[Iterator[bytes], list[str]]:
             """Pipe upstream SSE to client; return collected text pieces."""
             body = dict(body)
             body["stream"] = True
@@ -310,9 +309,7 @@ def make_handler(state: _GatewayState):
             params = _params_fingerprint(body)
 
             with state.lock:
-                cached = state.cache.lookup(
-                    cache_repr, model=model, optimize=False, user=user, params=params
-                )
+                cached = state.cache.lookup(cache_repr, model=model, optimize=False, user=user, params=params)
 
             if cached.get("cache_hit"):
                 text = cached["response"]
@@ -329,25 +326,17 @@ def make_handler(state: _GatewayState):
                 self._send_sse(gen)
                 text = "".join(collected)
                 with state.lock:
-                    state.cache.metrics.record_miss(
-                        estimate_tokens(cache_repr) + estimate_tokens(text)
-                    )
+                    state.cache.metrics.record_miss(estimate_tokens(cache_repr) + estimate_tokens(text))
                     if text.strip():
-                        state.cache.store(
-                            cache_repr, text, model=model, user=user, params=params
-                        )
+                        state.cache.store(cache_repr, text, model=model, user=user, params=params)
                 return
 
             upstream = self._call_upstream(upstream_url, body)
             text = _extract_openai_text(upstream)
             with state.lock:
-                state.cache.metrics.record_miss(
-                    estimate_tokens(cache_repr) + estimate_tokens(text)
-                )
+                state.cache.metrics.record_miss(estimate_tokens(cache_repr) + estimate_tokens(text))
                 if text.strip():
-                    state.cache.store(
-                        cache_repr, text, model=model, user=user, params=params
-                    )
+                    state.cache.store(cache_repr, text, model=model, user=user, params=params)
             upstream.setdefault("infercache", {})["cache_hit"] = False
             self._send_json(upstream)
 
@@ -359,9 +348,7 @@ def make_handler(state: _GatewayState):
             params = _params_fingerprint(body)
 
             with state.lock:
-                cached = state.cache.lookup(
-                    cache_repr, model=model, optimize=False, user=user, params=params
-                )
+                cached = state.cache.lookup(cache_repr, model=model, optimize=False, user=user, params=params)
 
             if cached.get("cache_hit"):
                 self._send_json(_anthropic_response(model, cached["response"], cached=True))
@@ -371,13 +358,9 @@ def make_handler(state: _GatewayState):
             upstream = self._call_upstream(upstream_url, body)
             text = _extract_anthropic_text(upstream)
             with state.lock:
-                state.cache.metrics.record_miss(
-                    estimate_tokens(cache_repr) + estimate_tokens(text)
-                )
+                state.cache.metrics.record_miss(estimate_tokens(cache_repr) + estimate_tokens(text))
                 if text.strip():
-                    state.cache.store(
-                        cache_repr, text, model=model, user=user, params=params
-                    )
+                    state.cache.store(cache_repr, text, model=model, user=user, params=params)
             upstream.setdefault("infercache", {})["cache_hit"] = False
             self._send_json(upstream)
 
@@ -398,7 +381,7 @@ def run_gateway(config: GatewayConfig | None = None) -> None:
     print(f"InferCache Gateway listening on http://{config.host}:{config.port}")
     print(f"  OpenAI-compatible : POST /v1/chat/completions -> {config.openai_upstream}")
     print(f"  Anthropic         : POST /v1/messages         -> {config.anthropic_upstream}")
-    print(f"  Stats             : GET  /stats")
+    print("  Stats             : GET  /stats")
     print(f"  Storage           : {config.cache.backend}")
     print(f"  Embeddings        : {config.cache.embedding_model}")
     try:

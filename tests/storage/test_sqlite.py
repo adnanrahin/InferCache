@@ -9,8 +9,11 @@ from infercache.storage.models import CacheEntry
 
 def _entry(key: str, prompt: str = "p", response: str = "r") -> CacheEntry:
     return CacheEntry(
-        key=key, prompt=prompt, response=response,
-        embedding=[0.1, 0.2], created_at=time.time(),
+        key=key,
+        prompt=prompt,
+        response=response,
+        embedding=[0.1, 0.2],
+        created_at=time.time(),
     )
 
 

@@ -50,7 +50,11 @@ dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "build>=1.0",
-    "ruff>=0.1",
+    "ruff>=0.6",
+    "mypy>=1.8",
+    "pip-audit>=2.7",
+    "bandit>=1.7",
+    "fakeredis>=2.20",
 ]
 
 [project.scripts]
@@ -71,7 +75,51 @@ include = ["src/infercache", "README.md", "LICENSE", "docs"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "integration: tests that hit real services or heavy optional deps (opt-in)",
+    "slow: long-running tests excluded from the default fast suite",
+]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py39"
+
+[tool.ruff.lint]
+# Core correctness + modernization gates. PTH (pathlib) is deferred to a fast-follow
+# (see docs/plan/07-quality-and-ci.md) to avoid churning working file-IO in Phase 0.
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RUF"]
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B011"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_unused_ignores = true
+no_implicit_optional = true
+ignore_missing_imports = true
+files = ["src/infercache"]
+
+# Strict typing on the core; tighten the rest over time (see docs/plan/07-quality-and-ci.md).
+[[tool.mypy.overrides]]
+module = [
+    "infercache.core.*",
+    "infercache.config.*",
+    "infercache.storage.*",
+    "infercache.metrics.*",
+]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.coverage.run]
+source = ["infercache"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 85
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

@@ -142,9 +142,7 @@ class SqliteStorage(StorageBackend):
             if cutoff is None:
                 cur = self._conn.execute("SELECT COUNT(*) FROM cache_entries")
             else:
-                cur = self._conn.execute(
-                    "SELECT COUNT(*) FROM cache_entries WHERE created_at >= ?", (cutoff,)
-                )
+                cur = self._conn.execute("SELECT COUNT(*) FROM cache_entries WHERE created_at >= ?", (cutoff,))
             return int(cur.fetchone()[0])
 
     def clear(self) -> None:

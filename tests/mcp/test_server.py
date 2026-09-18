@@ -11,10 +11,14 @@ def _make_server() -> McpServer:
 
 
 def _call_tool(server: McpServer, name: str, arguments: dict) -> dict:
-    response = server.handle_message({
-        "jsonrpc": "2.0", "id": 1, "method": "tools/call",
-        "params": {"name": name, "arguments": arguments},
-    })
+    response = server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": name, "arguments": arguments},
+        }
+    )
     payload = response["result"]["content"][0]["text"]
     return json.loads(payload)
 

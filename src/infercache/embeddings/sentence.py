@@ -17,9 +17,7 @@ class SentenceEmbedding(EmbeddingBackend):
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError as exc:
-            raise ImportError(
-                'Install semantic extras: pip install "infercache[semantic]"'
-            ) from exc
+            raise ImportError('Install semantic extras: pip install "infercache[semantic]"') from exc
         self.model_name = model_name
         self._model = SentenceTransformer(model_name)
 

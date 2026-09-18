@@ -5,14 +5,70 @@ from __future__ import annotations
 import math
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from difflib import SequenceMatcher
-from typing import Sequence
 
 _STOP = frozenset(
-    "a an the is are was were be been being have has had do does did will would "
-    "could should may might shall can what how why when where who which that this "
-    "these those it its of in on at to for with from by as and or not but if me "
-    "tell please kindly explain describe".split()
+    [
+        "a",
+        "an",
+        "the",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "shall",
+        "can",
+        "what",
+        "how",
+        "why",
+        "when",
+        "where",
+        "who",
+        "which",
+        "that",
+        "this",
+        "these",
+        "those",
+        "it",
+        "its",
+        "of",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "with",
+        "from",
+        "by",
+        "as",
+        "and",
+        "or",
+        "not",
+        "but",
+        "if",
+        "me",
+        "tell",
+        "please",
+        "kindly",
+        "explain",
+        "describe",
+    ]
 )
 
 

@@ -37,9 +37,7 @@ class InferCache:
         state_dir = None
         if self.config.backend == "sqlite":
             state_dir = os.path.dirname(self.config.sqlite_path) or "."
-        self.embedding = embedding or create_embedding_backend(
-            self.config.embedding_model, state_dir
-        )
+        self.embedding = embedding or create_embedding_backend(self.config.embedding_model, state_dir)
         self.storage = storage or create_storage(self.config)
         self.optimizer = PromptOptimizer(self.config)
 

@@ -55,10 +55,7 @@ class CacheLookup:
         meta = entry.metadata or {}
         if meta.get("model", "") != model:
             return False
-        for k, v in scope.items():
-            if meta.get(k) != v:
-                return False
-        return True
+        return all(meta.get(k) == v for k, v in scope.items())
 
     def semantic_lookup(self, prompt: str, model: str = "", **scope) -> CacheEntry | None:
         query_emb = self.embedding.embed(prompt)
