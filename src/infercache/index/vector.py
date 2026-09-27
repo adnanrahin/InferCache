@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from typing import Any
 
 try:
     import numpy as _np
@@ -11,7 +12,7 @@ except ImportError:
     _np = None
 
 try:
-    import faiss as _faiss  # type: ignore
+    import faiss as _faiss
 except ImportError:
     _faiss = None
 
@@ -45,9 +46,9 @@ class LocalVectorIndex:
         self._pos: dict[str, int] = {}
         self._vectors: list[list[float]] = []
         self._dim: int | None = None
-        self._matrix = None  # normalized numpy matrix, rebuilt lazily
+        self._matrix: Any = None  # normalized numpy matrix, rebuilt lazily
         self._dirty = False
-        self._faiss = None
+        self._faiss: Any = None
 
     def __len__(self) -> int:
         return len(self._ids)

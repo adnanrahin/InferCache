@@ -37,8 +37,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: python -m pip install --upgrade pip mypy
-      - run: mypy
+      - run: python -m pip install --upgrade pip "mypy>=1.8"
+      - run: mypy --config-file pyproject.toml
 
   test:
     name: Test (py${{ matrix.python-version }})
@@ -79,7 +79,7 @@ jobs:
       - name: Dependency audit
         run: pip-audit || true   # advisory until Phase 5 hardening; do not block early
       - name: Static security scan
-        run: bandit -r src -ll
+        run: bandit -c pyproject.toml -r src -ll
       - name: Secret scan (gitleaks)
         uses: gitleaks/gitleaks-action@v2
         env:

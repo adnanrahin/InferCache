@@ -6,10 +6,11 @@ import json
 import os
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 from infercache.config import CacheConfig
 from infercache.core import InferCache
+from infercache.http import urlopen
 from infercache.integrations.adapters.base import BaseAdapter
 
 DEFAULT_LLAMACPP_URL = "http://127.0.0.1:8080"

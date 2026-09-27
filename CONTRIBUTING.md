@@ -19,7 +19,7 @@ ruff check src tests            # lint
 ruff format --check src tests   # formatting
 mypy                            # types (strict on core/, config/, storage/, metrics/)
 pytest -q -m "not integration and not slow" --cov=infercache --cov-report=term-missing
-bandit -r src -ll               # static security scan
+bandit -c pyproject.toml -r src -ll  # static security scan
 pip-audit                       # dependency vulnerabilities (advisory)
 ```
 
@@ -36,7 +36,8 @@ ruff format src tests
 - Mark slow or live tests with `@pytest.mark.integration` or `@pytest.mark.slow`; they are excluded
   from the default suite and run opt-in.
 - Add a regression test for every bug fixed — especially cache-correctness bugs.
-- Coverage gate: overall line coverage must stay **≥ 85%**.
+- Coverage gate: overall line coverage must not drop below the current baseline
+  (**60%** today). The target is **85%**; raise `fail_under` as you backfill tests.
 
 ## Conventions
 

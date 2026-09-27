@@ -16,10 +16,11 @@ from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 from infercache.config import CacheConfig
 from infercache.core import InferCache
+from infercache.http import urlopen
 from infercache.optimization.tokens import estimate_tokens
 
 FORWARD_HEADERS = (

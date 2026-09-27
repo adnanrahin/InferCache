@@ -18,7 +18,11 @@ class AdaptiveThreshold:
         if not embedding:
             return "default"
         sample = embedding[:16]
-        return hashlib.md5(json.dumps([round(x, 3) for x in sample]).encode()).hexdigest()[:8]
+        digest = hashlib.md5(  # usedforsecurity=False: fingerprint only, not auth
+            json.dumps([round(x, 3) for x in sample]).encode(),
+            usedforsecurity=False,
+        )
+        return digest.hexdigest()[:8]
 
     def get_threshold(self, embedding: list[float]) -> float:
         bucket = self._bucket(embedding)
