@@ -19,9 +19,7 @@ def test_to_bedrock_messages():
 @patch.object(BedrockAdapter, "_get_client")
 def test_bedrock_chat_caches(mock_get_client):
     mock_client = MagicMock()
-    mock_client.converse.return_value = {
-        "output": {"message": {"content": [{"text": "Cached answer"}]}}
-    }
+    mock_client.converse.return_value = {"output": {"message": {"content": [{"text": "Cached answer"}]}}}
     mock_get_client.return_value = mock_client
 
     adapter = BedrockAdapter(default_model="anthropic.claude-3-5-sonnet-20241022-v2:0")

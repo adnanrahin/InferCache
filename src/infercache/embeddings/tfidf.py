@@ -8,7 +8,7 @@ import math
 import os
 import re
 from collections import Counter
-from typing import Sequence
+from collections.abc import Sequence
 
 from infercache.embeddings.base import EmbeddingBackend
 

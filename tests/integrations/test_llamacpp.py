@@ -25,9 +25,7 @@ def _mock_response(payload: dict):
 
 @patch("infercache.integrations.adapters.llamacpp.urlopen")
 def test_llamacpp_chat_caches_response(mock_urlopen):
-    mock_urlopen.return_value = _mock_response(
-        {"choices": [{"message": {"content": "Hello from llama.cpp!"}}]}
-    )
+    mock_urlopen.return_value = _mock_response({"choices": [{"message": {"content": "Hello from llama.cpp!"}}]})
 
     adapter = LlamaCppAdapter(default_model="local")
     messages = [{"role": "user", "content": "Hi"}]
@@ -44,9 +42,7 @@ def test_llamacpp_chat_caches_response(mock_urlopen):
 
 @patch("infercache.integrations.adapters.llamacpp.urlopen")
 def test_llamacpp_complete(mock_urlopen):
-    mock_urlopen.return_value = _mock_response(
-        {"choices": [{"message": {"content": "Generated text"}}]}
-    )
+    mock_urlopen.return_value = _mock_response({"choices": [{"message": {"content": "Generated text"}}]})
 
     adapter = LlamaCppAdapter(default_model="local")
     result = adapter.complete("Write a haiku")
@@ -58,8 +54,6 @@ def test_llamacpp_complete(mock_urlopen):
 
 @patch("infercache.integrations.adapters.llamacpp.urlopen")
 def test_llamacpp_list_models(mock_urlopen):
-    mock_urlopen.return_value = _mock_response(
-        {"data": [{"id": "model.gguf"}, {"id": "other"}]}
-    )
+    mock_urlopen.return_value = _mock_response({"data": [{"id": "model.gguf"}, {"id": "other"}]})
     adapter = LlamaCppAdapter()
     assert adapter.list_models() == ["model.gguf", "other"]

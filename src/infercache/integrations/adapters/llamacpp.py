@@ -6,10 +6,11 @@ import json
 import os
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 from infercache.config import CacheConfig
 from infercache.core import InferCache
+from infercache.http import urlopen
 from infercache.integrations.adapters.base import BaseAdapter
 
 DEFAULT_LLAMACPP_URL = "http://127.0.0.1:8080"
@@ -89,13 +90,10 @@ class LlamaCppAdapter(BaseAdapter):
                 return json.loads(body) if body else {}
         except HTTPError as exc:
             detail = exc.read().decode(errors="replace")[:500]
-            raise ConnectionError(
-                f"llama-server {exc.code} at {self.base_url}{path}: {detail}"
-            ) from exc
+            raise ConnectionError(f"llama-server {exc.code} at {self.base_url}{path}: {detail}") from exc
         except URLError as exc:
             raise ConnectionError(
-                f"Cannot reach llama-server at {self.base_url}. "
-                "Start it with: llama-server -m model.gguf --port 8080"
+                f"Cannot reach llama-server at {self.base_url}. Start it with: llama-server -m model.gguf --port 8080"
             ) from exc
 
     def _chat_uncached(self, messages: list[dict[str, Any]], model: str, **kwargs: Any) -> str:

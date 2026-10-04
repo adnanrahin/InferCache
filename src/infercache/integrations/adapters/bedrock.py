@@ -121,7 +121,6 @@ class BedrockAdapter(BaseAdapter):
         **kwargs: Any,
     ) -> dict[str, Any]:
         model = model or self.default_model
-        messages = [{"role": "user", "content": prompt}]
 
         def call(p: str) -> str:
             return self._invoke([{"role": "user", "content": p}], model, **kwargs)

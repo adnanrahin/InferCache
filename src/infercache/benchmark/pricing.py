@@ -35,8 +35,13 @@ def get_pricing(model: str) -> tuple[float, float]:
     return DEFAULT_PRICING
 
 
-def cost_usd(model: str, input_tokens: int, output_tokens: int,
-             input_price: float | None = None, output_price: float | None = None) -> float:
+def cost_usd(
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    input_price: float | None = None,
+    output_price: float | None = None,
+) -> float:
     in_p, out_p = get_pricing(model)
     if input_price is not None:
         in_p = input_price

@@ -12,8 +12,7 @@ def to_markdown(result: dict[str, Any]) -> str:
     lines = [
         "# InferCache Benchmark Report",
         "",
-        f"Model: `{result['model']}` | Requests: {result['total_requests']}"
-        f" | Wall time: {result['wall_time_s']}s",
+        f"Model: `{result['model']}` | Requests: {result['total_requests']} | Wall time: {result['wall_time_s']}s",
         "",
         "## Cache performance",
         "",

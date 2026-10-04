@@ -87,8 +87,11 @@ def main() -> None:
 
     print("\n--- Cascade path (cheap model first) ---")
 
+    # Use chat API (more reliable than /api/generate under load) + longer timeout
+    adapter.timeout = 300.0
+
     def call_model(p: str) -> str:
-        return adapter._generate_uncached(p, MODEL)
+        return adapter._chat_uncached([{"role": "user", "content": p}], MODEL)
 
     # Single-stage cascade still exercises the API; add a stub escalate stage
     cascade = ModelCascade(

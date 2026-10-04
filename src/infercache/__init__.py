@@ -9,13 +9,13 @@ from infercache.optimization import PromptOptimizer
 from infercache.routing import CascadeStage, ModelCascade
 
 __all__ = [
-    "InferCache",
     "CacheConfig",
     "CacheMetrics",
-    "PromptOptimizer",
     "CascadeStage",
+    "InferCache",
     "ModelCascade",
+    "PromptOptimizer",
+    "__version__",
     "cached_llm_call",
     "configure",
-    "__version__",
 ]

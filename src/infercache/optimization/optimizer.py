@@ -3,17 +3,22 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Sequence
+from typing import Any, ClassVar
 
 from infercache.config import CacheConfig
-from infercache.optimization.tokens import count_messages_tokens, estimate_tokens, normalize_whitespace
+from infercache.optimization.tokens import (
+    count_messages_tokens,
+    estimate_tokens,
+    normalize_whitespace,
+)
 
 
 class PromptOptimizer:
     """Reduces input tokens while preserving semantic structure."""
 
-    FILLER_PATTERNS = [
+    FILLER_PATTERNS: ClassVar[list[str]] = [
         r"\b(please|kindly|could you|would you|I would like you to)\b",
         r"\b(very|really|quite|actually|basically|essentially)\b",
         r"\b(in order to|for the purpose of)\b",
@@ -22,9 +27,7 @@ class PromptOptimizer:
     def __init__(self, config: CacheConfig | None = None) -> None:
         self.config = config or CacheConfig()
 
-    def optimize_messages(
-        self, messages: Sequence[dict[str, Any]]
-    ) -> tuple[list[dict[str, Any]], int, int]:
+    def optimize_messages(self, messages: Sequence[dict[str, Any]]) -> tuple[list[dict[str, Any]], int, int]:
         msgs = [deepcopy(m) for m in messages]
         before = count_messages_tokens(msgs)
 

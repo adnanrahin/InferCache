@@ -18,7 +18,7 @@ class HashEmbedding(EmbeddingBackend):
         text = text.lower().strip()
         vec = [0.0] * self.dimensions
         for token in re.findall(r"\w+", text):
-            h = int(hashlib.md5(token.encode()).hexdigest(), 16)
+            h = int(hashlib.md5(token.encode(), usedforsecurity=False).hexdigest(), 16)
             idx = h % self.dimensions
             sign = 1.0 if (h >> 8) % 2 == 0 else -1.0
             vec[idx] += sign

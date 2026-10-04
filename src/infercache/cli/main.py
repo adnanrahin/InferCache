@@ -47,10 +47,10 @@ def main(argv: list[str] | None = None) -> int:
     gw_p.add_argument("--backend", default="sqlite", choices=["memory", "sqlite", "redis"])
     gw_p.add_argument("--sqlite-path", default=None, help="Default: ~/.infercache/cache.db")
     gw_p.add_argument("--redis-url", default=None)
-    gw_p.add_argument("--similarity-threshold", type=float, default=None,
-                      help="Semantic match threshold (default: config default)")
-    gw_p.add_argument("--ttl", type=int, default=None,
-                      help="Entry lifetime in seconds (default: 7 days)")
+    gw_p.add_argument(
+        "--similarity-threshold", type=float, default=None, help="Semantic match threshold (default: config default)"
+    )
+    gw_p.add_argument("--ttl", type=int, default=None, help="Entry lifetime in seconds (default: 7 days)")
     gw_p.add_argument(
         "--embedding",
         default="tfidf",
@@ -61,8 +61,9 @@ def main(argv: list[str] | None = None) -> int:
     mcp_p = sub.add_parser("mcp", help="Run the MCP server (stdio) for Cursor/Claude/etc.")
     mcp_p.add_argument("--backend", default="sqlite", choices=["memory", "sqlite", "redis"])
     mcp_p.add_argument("--sqlite-path", default=None, help="Default: ~/.infercache/cache.db")
-    mcp_p.add_argument("--similarity-threshold", type=float, default=None,
-                       help="Semantic match threshold (default: config default)")
+    mcp_p.add_argument(
+        "--similarity-threshold", type=float, default=None, help="Semantic match threshold (default: config default)"
+    )
     mcp_p.add_argument(
         "--embedding",
         default="tfidf",
@@ -121,15 +122,9 @@ def main(argv: list[str] | None = None) -> int:
             to_markdown,
         )
 
-        prompts = (
-            load_jsonl(args.dataset)
-            if args.dataset
-            else synthetic_workload(args.queries, args.repeat_rate)
-        )
+        prompts = load_jsonl(args.dataset) if args.dataset else synthetic_workload(args.queries, args.repeat_rate)
         cache = InferCache()
-        result = run_cache_benchmark(
-            cache, prompts, model=args.model, llm_latency_s=args.llm_latency
-        ).to_dict()
+        result = run_cache_benchmark(cache, prompts, model=args.model, llm_latency_s=args.llm_latency).to_dict()
         print(json.dumps(result, indent=2))
         if args.output:
             with open(args.output, "w", encoding="utf-8") as f:

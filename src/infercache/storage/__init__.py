@@ -9,9 +9,9 @@ from infercache.storage.sqlite import SqliteStorage
 
 __all__ = [
     "CacheEntry",
-    "StorageBackend",
     "MemoryStorage",
     "RedisStorage",
     "SqliteStorage",
+    "StorageBackend",
     "create_storage",
 ]

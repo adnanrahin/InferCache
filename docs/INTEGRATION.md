@@ -13,6 +13,8 @@ How to use InferCache as a package in your application, with AWS Bedrock, Ollama
 
 Prefer Ollama and Cursor MCP until other paths are marked tested. See [GETTING_STARTED.md](GETTING_STARTED.md).
 
+To validate Bedrock end-to-end, use [TESTING_BEDROCK.md](TESTING_BEDROCK.md).
+
 ## Mental model
 
 InferCache is **middleware**, not a replacement for your LLM provider.

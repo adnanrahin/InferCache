@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sqlite3
 import threading
-from typing import Any
 
 from infercache.metrics.collector import CacheMetrics
 from infercache.storage.sqlite import tune_connection

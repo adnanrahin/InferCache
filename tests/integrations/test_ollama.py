@@ -25,9 +25,7 @@ def _mock_response(payload: dict):
 
 @patch("infercache.integrations.adapters.ollama.urlopen")
 def test_ollama_chat_caches_response(mock_urlopen):
-    mock_urlopen.return_value = _mock_response(
-        {"message": {"content": "Hello from Ollama!"}}
-    )
+    mock_urlopen.return_value = _mock_response({"message": {"content": "Hello from Ollama!"}})
 
     adapter = OllamaAdapter(default_model="llama3.2")
     messages = [{"role": "user", "content": "Hi"}]

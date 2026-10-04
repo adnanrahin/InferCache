@@ -8,13 +8,15 @@ InferCache is **local-first**: cache lives on your machine (`~/.infercache/cache
 |------|--------|--------|
 | **Ollama** adapter + demos | **Tested** | Recommended local LLM path |
 | **MCP in Cursor** | **Tested** | `cache_lookup` / `cache_store` / `cache_stats` / … |
+| **Caching gateway** (Ollama upstream) | **Tested** | `infercache gateway` + OpenAI-compatible clients |
 | MCP in Claude Desktop / Claude Code | Testing in progress | Same server; client setup not fully validated |
-| OpenAI / Anthropic / Bedrock adapters | Testing in progress | Code + examples present |
+| OpenAI / Anthropic / Bedrock adapters | Testing in progress | Code + examples present — see [TESTING_BEDROCK.md](TESTING_BEDROCK.md) |
 | llama.cpp adapter | Testing in progress | Code + examples present |
-| Caching gateway | Testing in progress | Prefer Ollama/MCP until validated |
-| FastAPI example / Redis / model cascade | In progress | Experimental |
+| FastAPI example / Redis / model cascade | In progress | FastAPI works with Ollama after latest example fix |
 
 **Start here:** install → use **Ollama** and/or **Cursor MCP**. Treat other services as preview until marked tested.
+
+**Bedrock:** follow [TESTING_BEDROCK.md](TESTING_BEDROCK.md) when you are ready to validate AWS.
 
 Pick one path below depending on how you want to use it.
 

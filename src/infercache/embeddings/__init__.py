@@ -11,7 +11,7 @@ __all__ = [
 ]
 
 try:
-    from infercache.embeddings.sentence import SentenceEmbedding
+    from infercache.embeddings.sentence import SentenceEmbedding  # noqa: F401  (optional dep probe)
 
     __all__.append("SentenceEmbedding")
 except ImportError:

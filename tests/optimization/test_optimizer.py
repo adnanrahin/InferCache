@@ -1,6 +1,6 @@
 """Optimization package tests."""
 
-from infercache import InferCache, CacheConfig
+from infercache import CacheConfig, InferCache
 
 
 def test_prompt_compression_reduces_tokens():

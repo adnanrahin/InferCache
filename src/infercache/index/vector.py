@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import math
-from typing import Sequence
+from collections.abc import Sequence
+from typing import Any
 
 try:
     import numpy as _np
@@ -11,7 +12,7 @@ except ImportError:
     _np = None
 
 try:
-    import faiss as _faiss  # type: ignore
+    import faiss as _faiss
 except ImportError:
     _faiss = None
 
@@ -45,9 +46,9 @@ class LocalVectorIndex:
         self._pos: dict[str, int] = {}
         self._vectors: list[list[float]] = []
         self._dim: int | None = None
-        self._matrix = None  # normalized numpy matrix, rebuilt lazily
+        self._matrix: Any = None  # normalized numpy matrix, rebuilt lazily
         self._dirty = False
-        self._faiss = None
+        self._faiss: Any = None
 
     def __len__(self) -> int:
         return len(self._ids)
@@ -107,11 +108,7 @@ class LocalVectorIndex:
             v = _np.asarray([query], dtype=_np.float32)
             _faiss.normalize_L2(v)
             scores, indices = self._faiss.search(v, k)
-            return [
-                (self._ids[int(i)], float(s))
-                for s, i in zip(scores[0], indices[0])
-                if i >= 0
-            ]
+            return [(self._ids[int(i)], float(s)) for s, i in zip(scores[0], indices[0]) if i >= 0]
 
         if _np is not None:
             if self._matrix is None or self._dirty:
@@ -129,10 +126,7 @@ class LocalVectorIndex:
             top = top[_np.argsort(scores[top])[::-1]]
             return [(self._ids[int(i)], float(scores[int(i)])) for i in top]
 
-        scored = [
-            (entry_id, _cosine(query, vec))
-            for entry_id, vec in zip(self._ids, self._vectors)
-        ]
+        scored = [(entry_id, _cosine(query, vec)) for entry_id, vec in zip(self._ids, self._vectors)]
         scored.sort(key=lambda x: x[1], reverse=True)
         return scored[:k]
 

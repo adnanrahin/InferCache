@@ -1,6 +1,6 @@
 """Core cache tests."""
 
-from infercache import InferCache, CacheConfig
+from infercache import CacheConfig, InferCache
 
 
 def test_exact_cache_hit():

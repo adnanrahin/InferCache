@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from infercache.config import CacheConfig
 from infercache.core.adaptive import AdaptiveThreshold
 from infercache.core.keys import make_exact_key
@@ -34,7 +36,7 @@ class CacheLookup:
         self.adaptive = adaptive
         self.vector_index = vector_index
 
-    def exact_lookup(self, prompt: str, model: str = "", **kwargs) -> CacheEntry | None:
+    def exact_lookup(self, prompt: str, model: str = "", **kwargs: Any) -> CacheEntry | None:
         if not self.config.enable_exact_cache:
             return None
         key = make_exact_key(prompt, model=model, **kwargs)
@@ -50,17 +52,14 @@ class CacheLookup:
         return self.embedding.text_similarity(query, entry.prompt)
 
     @staticmethod
-    def _in_scope(entry: CacheEntry, model: str, scope: dict) -> bool:
+    def _in_scope(entry: CacheEntry, model: str, scope: dict[str, Any]) -> bool:
         """Entry must match the same fields that scope the exact key."""
         meta = entry.metadata or {}
         if meta.get("model", "") != model:
             return False
-        for k, v in scope.items():
-            if meta.get(k) != v:
-                return False
-        return True
+        return all(meta.get(k) == v for k, v in scope.items())
 
-    def semantic_lookup(self, prompt: str, model: str = "", **scope) -> CacheEntry | None:
+    def semantic_lookup(self, prompt: str, model: str = "", **scope: Any) -> CacheEntry | None:
         query_emb = self.embedding.embed(prompt)
         threshold = self.config.similarity_threshold
         if self.config.adaptive_threshold:
@@ -115,8 +114,8 @@ class CacheLookup:
         prompt: str,
         model: str = "",
         optimize: bool = True,
-        **kwargs,
-    ) -> dict:
+        **kwargs: Any,
+    ) -> dict[str, Any]:
         optimized_prompt = prompt
         if optimize:
             optimized_prompt, before, after = self.optimizer.optimize_prompt(prompt)
