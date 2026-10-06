@@ -68,7 +68,7 @@ jobs:
         run: python -m build
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: infercache-wheel-${{ github.sha }}
           path: |
@@ -162,7 +162,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload release build as Actions artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: infercache-release-${{ steps.version.outputs.tag }}
           path: |
