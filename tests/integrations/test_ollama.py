@@ -8,11 +8,11 @@ from infercache.integrations.adapters.ollama import resolve_ollama_base_url
 
 
 def test_resolve_ollama_base_url_host_port():
-    assert resolve_ollama_base_url("192.168.1.248:11434") == "http://192.168.1.248:11434"
+    assert resolve_ollama_base_url("192.0.2.10:11434") == "http://192.0.2.10:11434"
 
 
 def test_resolve_ollama_base_url_full():
-    assert resolve_ollama_base_url("http://192.168.1.248:11434") == "http://192.168.1.248:11434"
+    assert resolve_ollama_base_url("http://192.0.2.10:11434") == "http://192.0.2.10:11434"
 
 
 def _mock_response(payload: dict):

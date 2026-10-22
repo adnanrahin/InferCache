@@ -4,8 +4,8 @@ Prerequisites:
   1. Ollama running on a reachable host
   2. A model pulled on that server, e.g. ollama pull llama3.2
 
-Remote server (your machine → 192.168.1.248):
-  set OLLAMA_HOST=192.168.1.248:11434
+Remote server (replace <ollama-host> with the server's address):
+  set OLLAMA_HOST=<ollama-host>:11434
   python examples/ollama_example.py
 
 Or pass base_url directly in code (see below).
@@ -22,9 +22,9 @@ from infercache.integrations.adapters import OllamaAdapter
 
 # Remote Ollama — pick one:
 #   Option A: environment variable
-#     set OLLAMA_HOST=192.168.1.248:11434
+#     set OLLAMA_HOST=<ollama-host>:11434
 #   Option B: pass base_url directly
-OLLAMA_URL = os.environ.get("OLLAMA_HOST", "192.168.1.248:11434")
+OLLAMA_URL = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434")
 
 cache = InferCache(CacheConfig(similarity_threshold=0.55, ttl_seconds=3600, backend="sqlite"))
 adapter = OllamaAdapter(

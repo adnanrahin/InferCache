@@ -76,7 +76,7 @@ Requires: `pip install "infercache[bedrock]"` and AWS credentials.
 from infercache.integrations.adapters import OllamaAdapter
 
 ollama = OllamaAdapter(
-    base_url="192.168.1.248:11434",
+    base_url="<ollama-host>:11434",
     default_model="qwen3.5:latest",
 )
 result = ollama.chat([{"role": "user", "content": "Hello"}])

@@ -8,7 +8,7 @@ Install:
 
 Run (Ollama):
   set PROVIDER=ollama
-  set OLLAMA_HOST=192.168.1.248:11434
+  set OLLAMA_HOST=<ollama-host>:11434
   uvicorn examples.fastapi_app:app --reload --port 8080
 
 Run (Bedrock):
@@ -55,7 +55,7 @@ if PROVIDER == "bedrock":
 else:
     adapter = OllamaAdapter(
         cache=cache,
-        base_url=os.environ.get("OLLAMA_HOST", "192.168.1.248:11434"),
+        base_url=os.environ.get("OLLAMA_HOST", "127.0.0.1:11434"),
         default_model=os.environ.get("OLLAMA_MODEL", "qwen3.5:latest"),
     )
 

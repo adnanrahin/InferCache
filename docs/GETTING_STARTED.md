@@ -225,7 +225,7 @@ If `infercache` is not on PATH, use the full Python path:
 {
   "mcpServers": {
     "infercache": {
-      "command": "C:\\Users\\YOU\\.conda\\envs\\infer_cache\\python.exe",
+      "command": "C:\\path\\to\\your\\venv\\Scripts\\python.exe",
       "args": ["-m", "infercache.mcp"]
     }
   }
@@ -276,7 +276,7 @@ Any OpenAI/Anthropic-compatible client can get caching by pointing its **base UR
 infercache gateway --port 8899 --openai-upstream https://api.openai.com
 
 # In front of local/LAN Ollama (OpenAI-compatible API)
-infercache gateway --port 8899 --openai-upstream http://192.168.1.248:11434
+infercache gateway --port 8899 --openai-upstream http://<ollama-host>:11434
 
 # In front of Anthropic
 infercache gateway --port 8899 --anthropic-upstream https://api.anthropic.com

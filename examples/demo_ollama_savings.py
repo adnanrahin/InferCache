@@ -3,7 +3,7 @@ Demo: InferCache + Ollama — see tokens SPENT vs tokens SAVED.
 
 Run:
   conda activate infer_cache
-  set OLLAMA_HOST=192.168.1.248:11434
+  set OLLAMA_HOST=<ollama-host>:11434
   set OLLAMA_MODEL=qwen3.5:latest
   python examples/demo_ollama_savings.py
 
@@ -23,7 +23,7 @@ from infercache import CacheConfig, InferCache
 from infercache.integrations.adapters import OllamaAdapter
 from infercache.optimization.tokens import estimate_tokens
 
-OLLAMA_URL = os.environ.get("OLLAMA_HOST", "192.168.1.248:11434")
+OLLAMA_URL = os.environ.get("OLLAMA_HOST", "127.0.0.1:11434")
 MODEL = os.environ.get("OLLAMA_MODEL", "qwen3.5:latest")
 
 

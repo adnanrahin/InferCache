@@ -197,7 +197,7 @@ infercache gateway --port 8899 --openai-upstream https://api.openai.com
 # Then set your client's base URL to http://127.0.0.1:8899/v1
 ```
 
-Works with SDKs, Claude Code (`ANTHROPIC_BASE_URL=http://127.0.0.1:8899`), LiteLLM, and local Ollama (`--openai-upstream http://192.168.1.248:11434`).
+Works with SDKs, Claude Code (`ANTHROPIC_BASE_URL=http://127.0.0.1:8899`), LiteLLM, and local Ollama (`--openai-upstream http://127.0.0.1:11434`).
 
 ## Benchmarking
 
