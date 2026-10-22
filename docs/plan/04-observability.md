@@ -58,8 +58,8 @@ model, or trace why a specific request hit/missed.
 
 ### E. Dashboard
 10. Ship a lightweight dashboard: hit-rate over time, tokens/$ saved, top cached prompts, per-model
-    breakdown, recent misses with reasons/confidence. Either a static page served at gateway `/dashboard`
-    or a Cursor canvas example (`examples/dashboard.canvas.tsx`) reading `/stats`.
+    breakdown, recent misses with reasons/confidence. A static page served at gateway `/dashboard`
+    reading `/stats`.
 11. `docs/OBSERVABILITY.md`: how accounting works, how to enable OTel/Prometheus, how to read the dashboard.
 
 ## Acceptance criteria
