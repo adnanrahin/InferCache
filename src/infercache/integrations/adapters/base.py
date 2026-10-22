@@ -6,6 +6,7 @@ from typing import Any
 
 from infercache.config import CacheConfig
 from infercache.core import InferCache
+from infercache.core.scope import sampling_scope
 
 
 class BaseAdapter:
@@ -14,3 +15,8 @@ class BaseAdapter:
 
     def stats(self) -> dict[str, Any]:
         return self.cache.stats()
+
+    @staticmethod
+    def cache_scope(kwargs: dict[str, Any]) -> dict[str, Any]:
+        """Sampling fields that must scope the cache key (not forwarded as identity)."""
+        return sampling_scope(kwargs)

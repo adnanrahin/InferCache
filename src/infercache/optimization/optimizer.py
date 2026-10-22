@@ -8,6 +8,7 @@ from copy import deepcopy
 from typing import Any, ClassVar
 
 from infercache.config import CacheConfig
+from infercache.optimization.payload import should_rewrite
 from infercache.optimization.tokens import (
     count_messages_tokens,
     estimate_tokens,
@@ -30,25 +31,52 @@ class PromptOptimizer:
     def optimize_messages(self, messages: Sequence[dict[str, Any]]) -> tuple[list[dict[str, Any]], int, int]:
         msgs = [deepcopy(m) for m in messages]
         before = count_messages_tokens(msgs)
+        frozen, rest = self._split_frozen_prefix(msgs)
 
         if self.config.enable_history_pruning:
-            msgs = self._prune_history(msgs)
+            rest = self._prune_history(rest)
         if self.config.enable_prompt_compression:
-            msgs = self._compress_messages(msgs)
+            rest = self._compress_messages(rest)
         if self.config.enable_prefix_optimization:
-            msgs = self._reorder_for_prefix_cache(msgs)
+            rest = self._reorder_for_prefix_cache(rest)
 
+        # Frozen system blocks are prepended unchanged so provider prefix caches
+        # keep a stable byte prefix. They are never compressed or pruned.
+        msgs = frozen + rest
         after = count_messages_tokens(msgs)
         return msgs, before, after
 
     def optimize_prompt(self, prompt: str) -> tuple[str, int, int]:
         before = estimate_tokens(prompt)
+        if not should_rewrite(prompt):
+            text = prompt.strip()
+            return text, before, estimate_tokens(text)
         text = prompt
         if self.config.enable_prompt_compression:
             text = self._compress_text(text)
         text = normalize_whitespace(text)
         after = estimate_tokens(text)
         return text, before, after
+
+    def _split_frozen_prefix(
+        self, messages: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Peel long system messages off so later steps cannot mutate them."""
+        if not self.config.enable_prefix_optimization:
+            return [], messages
+        frozen: list[dict[str, Any]] = []
+        rest: list[dict[str, Any]] = []
+        for msg in messages:
+            content = msg.get("content", "")
+            if (
+                msg.get("role") == "system"
+                and isinstance(content, str)
+                and estimate_tokens(content) >= self.config.static_prefix_min_tokens
+            ):
+                frozen.append(msg)
+            else:
+                rest.append(msg)
+        return frozen, rest
 
     def _prune_history(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if len(messages) <= self.config.max_history_messages:

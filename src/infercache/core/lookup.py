@@ -11,6 +11,7 @@ from infercache.embeddings import EmbeddingBackend
 from infercache.index import LocalVectorIndex
 from infercache.metrics import CacheMetrics
 from infercache.optimization import PromptOptimizer
+from infercache.optimization.payload import classify_payload
 from infercache.optimization.tokens import estimate_tokens
 from infercache.storage import CacheEntry, StorageBackend
 
@@ -59,7 +60,9 @@ class CacheLookup:
             return False
         return all(meta.get(k) == v for k, v in scope.items())
 
-    def semantic_lookup(self, prompt: str, model: str = "", **scope: Any) -> CacheEntry | None:
+    def semantic_lookup(
+        self, prompt: str, model: str = "", **scope: Any
+    ) -> tuple[CacheEntry, float] | None:
         query_emb = self.embedding.embed(prompt)
         threshold = self.config.similarity_threshold
         if self.config.adaptive_threshold:
@@ -105,9 +108,29 @@ class CacheLookup:
             self.metrics.record_threshold_reject()
             return None
 
+        confidence = self._confidence(best_score, second, query_emb, len(ranked))
+        if confidence < self.config.min_confidence:
+            self.metrics.record_threshold_reject()
+            return None
+
         best_entry.hits += 1
         self.storage.set(best_entry)
-        return best_entry
+        return best_entry, confidence
+
+    def _confidence(
+        self,
+        best_score: float,
+        second: float,
+        query_emb: list[float],
+        ranked_len: int,
+    ) -> float:
+        """InferCache score in [0, 1]: similarity, neighbor margin, bucket accuracy."""
+        margin = best_score if ranked_len < 2 else best_score - second
+        span = max(self.config.semantic_score_margin * 3.0, 1e-6)
+        margin_term = min(1.0, max(0.0, margin / span))
+        accuracy = self.adaptive.bucket_accuracy(query_emb)
+        raw = 0.55 * best_score + 0.30 * margin_term + 0.15 * accuracy
+        return max(0.0, min(1.0, raw))
 
     def lookup(
         self,
@@ -121,6 +144,8 @@ class CacheLookup:
             optimized_prompt, before, after = self.optimizer.optimize_prompt(prompt)
             self.metrics.record_optimization(before, after)
 
+        kind = classify_payload(prompt).value
+
         entry = self.exact_lookup(optimized_prompt, model=model, **kwargs)
         if entry:
             tokens = estimate_tokens(prompt) + estimate_tokens(entry.response)
@@ -129,22 +154,29 @@ class CacheLookup:
                 "response": entry.response,
                 "cache_hit": True,
                 "cache_type": "exact",
+                "confidence": 1.0,
+                "payload_kind": kind,
                 "optimized_prompt": optimized_prompt,
             }
 
         semantic = self.semantic_lookup(optimized_prompt, model=model, **kwargs)
         if semantic:
-            tokens = estimate_tokens(prompt) + estimate_tokens(semantic.response)
+            entry, confidence = semantic
+            tokens = estimate_tokens(prompt) + estimate_tokens(entry.response)
             self.metrics.record_hit("semantic", tokens)
             return {
-                "response": semantic.response,
+                "response": entry.response,
                 "cache_hit": True,
                 "cache_type": "semantic",
+                "confidence": confidence,
                 "similarity": True,
+                "payload_kind": kind,
                 "optimized_prompt": optimized_prompt,
             }
 
         return {
             "cache_hit": False,
+            "confidence": 0.0,
+            "payload_kind": kind,
             "optimized_prompt": optimized_prompt,
         }

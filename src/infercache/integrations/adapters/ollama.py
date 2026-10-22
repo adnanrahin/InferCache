@@ -99,7 +99,9 @@ class OllamaAdapter(BaseAdapter):
 
         # get_or_call_messages optimizes once; cache_control blocks are an
         # Anthropic wire format that Ollama would reject
-        result = self.cache.get_or_call_messages(messages, call, model=model)
+        result = self.cache.get_or_call_messages(
+            messages, call, model=model, **self.cache_scope(kwargs)
+        )
         result["provider"] = "ollama"
         return result
 
@@ -114,7 +116,7 @@ class OllamaAdapter(BaseAdapter):
         def call(p: str) -> str:
             return self._generate_uncached(p, model, **kwargs)
 
-        result = self.cache.get_or_call(prompt, call, model=model)
+        result = self.cache.get_or_call(prompt, call, model=model, **self.cache_scope(kwargs))
         result["provider"] = "ollama"
         return result
 

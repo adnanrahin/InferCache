@@ -44,6 +44,8 @@ class OpenAIAdapter(BaseAdapter):
             resp = client.chat.completions.create(model=model, messages=msgs, **kwargs)
             return resp.choices[0].message.content or ""
 
-        result = self.cache.get_or_call_messages(messages, call, model=model)
+        result = self.cache.get_or_call_messages(
+            messages, call, model=model, **self.cache_scope(kwargs)
+        )
         result["provider"] = "openai"
         return result

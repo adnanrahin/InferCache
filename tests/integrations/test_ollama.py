@@ -40,6 +40,16 @@ def test_ollama_chat_caches_response(mock_urlopen):
 
 
 @patch("infercache.integrations.adapters.ollama.urlopen")
+def test_ollama_chat_does_not_reuse_across_temperature(mock_urlopen):
+    mock_urlopen.return_value = _mock_response({"message": {"content": "Hello from Ollama!"}})
+    adapter = OllamaAdapter(default_model="llama3.2")
+    messages = [{"role": "user", "content": "Hi"}]
+    adapter.chat(messages, temperature=0)
+    adapter.chat(messages, temperature=1)
+    assert mock_urlopen.call_count == 2
+
+
+@patch("infercache.integrations.adapters.ollama.urlopen")
 def test_ollama_complete(mock_urlopen):
     mock_urlopen.return_value = _mock_response({"response": "Generated text"})
 

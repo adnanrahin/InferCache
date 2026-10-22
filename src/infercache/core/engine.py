@@ -8,6 +8,7 @@ from typing import Any, Callable
 
 from infercache.config import CacheConfig
 from infercache.core.adaptive import AdaptiveThreshold
+from infercache.core.keys import make_exact_key
 from infercache.core.lookup import CacheLookup
 from infercache.core.store import CacheStore
 from infercache.embeddings import EmbeddingBackend, create_embedding_backend
@@ -46,10 +47,13 @@ class InferCache:
         else:
             self.metrics = CacheMetrics()
 
+        adaptive_state = os.path.join(state_dir, "adaptive_state.json") if state_dir else None
         self._adaptive = AdaptiveThreshold(
             self.config.similarity_threshold,
             self.config.error_rate_target,
+            state_path=adaptive_state,
         )
+        self._stores_since_index_check = 0
         self.vector_index: LocalVectorIndex | None = None
         if self.config.use_vector_index:
             self.vector_index = LocalVectorIndex()
@@ -95,84 +99,165 @@ class InferCache:
         response: str,
         model: str = "",
         metadata: dict[str, Any] | None = None,
+        tags: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
+        if tags:
+            metadata = {**(metadata or {}), "tags": list(tags)}
         self._store.store(prompt, response, model=model, metadata=metadata, **kwargs)
+        self._maybe_resync_index()
+
+    def _maybe_resync_index(self) -> None:
+        """Rebuild the vector index when TTL/LRU evictions have left it stale."""
+        if self.vector_index is None:
+            return
+        self._stores_since_index_check += 1
+        if self._stores_since_index_check < 100:
+            return
+        self._stores_since_index_check = 0
+        live = self.storage.count()
+        if len(self.vector_index) > live + max(8, live // 4):
+            self._rebuild_index()
+
+    def invalidate(
+        self,
+        *,
+        key: str | None = None,
+        prompt: str | None = None,
+        model: str = "",
+        tag: str | None = None,
+        **scope: Any,
+    ) -> int:
+        """Remove matching entries from storage and the vector index.
+
+        Returns the number of entries deleted. ``prompt`` is matched by exact
+        key (same optimization + scope as ``store``); ``tag`` scans entries
+        whose metadata ``tags`` list contains it.
+        """
+        keys: list[str] = []
+        if key:
+            keys.append(key)
+        if prompt is not None:
+            optimized, _, _ = self.optimizer.optimize_prompt(prompt)
+            keys.append(make_exact_key(optimized, model=model, **scope))
+
+        removed = 0
+        for k in keys:
+            if self.storage.get(k) is not None:
+                self.storage.delete(k)
+                removed += 1
+            if self.vector_index is not None:
+                self.vector_index.remove(k)
+
+        if tag:
+            for entry in self.storage.list_entries():
+                entry_tags = (entry.metadata or {}).get("tags") or []
+                if tag in entry_tags:
+                    self.storage.delete(entry.key)
+                    removed += 1
+                    if self.vector_index is not None:
+                        self.vector_index.remove(entry.key)
+        return removed
 
     def get_or_call(
         self,
         prompt: str,
         llm_fn: Callable[[str], str],
         model: str = "",
+        bypass: bool = False,
+        no_store: bool = False,
         **kwargs: Any,
     ) -> dict[str, Any]:
-        result = self.lookup(prompt, model=model, **kwargs)
-        if result.get("cache_hit"):
-            return result
+        if bypass:
+            optimized, before, after = self.optimizer.optimize_prompt(prompt)
+            self.metrics.record_optimization(before, after)
+            result: dict[str, Any] = {"cache_hit": False, "optimized_prompt": optimized}
+        else:
+            result = self.lookup(prompt, model=model, **kwargs)
+            if result.get("cache_hit"):
+                return result
 
         optimized = result["optimized_prompt"]
         response = llm_fn(optimized)
         tokens = estimate_tokens(optimized) + estimate_tokens(response)
         self.metrics.record_miss(tokens)
-        if response and response.strip():
+        if response and response.strip() and not no_store:
             self.store(prompt, response, model=model, **kwargs)
         return {
             "response": response,
             "cache_hit": False,
+            "confidence": 0.0,
             "optimized_prompt": optimized,
+            "payload_kind": result.get("payload_kind"),
         }
 
     def lookup_messages(
         self,
         messages: list[dict[str, Any]],
         model: str = "",
+        **kwargs: Any,
     ) -> dict[str, Any]:
         optimized, before, after = self.optimizer.optimize_messages(messages)
         self.metrics.record_optimization(before, after)
         prompt_repr = json.dumps(optimized, sort_keys=True)
-        return self.lookup(prompt_repr, model=model, optimize=False)
+        return self.lookup(prompt_repr, model=model, optimize=False, **kwargs)
 
     def store_messages(
         self,
         messages: list[dict[str, Any]],
         response: str,
         model: str = "",
+        **kwargs: Any,
     ) -> None:
         optimized, _, _ = self.optimizer.optimize_messages(messages)
         prompt_repr = json.dumps(optimized, sort_keys=True)
-        self.store(prompt_repr, response, model=model)
+        self.store(prompt_repr, response, model=model, **kwargs)
 
     def get_or_call_messages(
         self,
         messages: list[dict[str, Any]],
         llm_fn: Callable[[list[dict[str, Any]]], str],
         model: str = "",
+        bypass: bool = False,
+        no_store: bool = False,
+        **kwargs: Any,
     ) -> dict[str, Any]:
         optimized, before, after = self.optimizer.optimize_messages(messages)
         self.metrics.record_optimization(before, after)
 
         prompt_repr = json.dumps(optimized, sort_keys=True)
-        cached = self.lookup(prompt_repr, model=model, optimize=False)
-        if cached.get("cache_hit"):
-            cached["optimized_messages"] = optimized
-            return cached
+        if not bypass:
+            cached = self.lookup(prompt_repr, model=model, optimize=False, **kwargs)
+            if cached.get("cache_hit"):
+                cached["optimized_messages"] = optimized
+                return cached
 
         response = llm_fn(optimized)
         tokens = after + estimate_tokens(response)
         self.metrics.record_miss(tokens)
-        if response and response.strip():
-            self.store(prompt_repr, response, model=model)
+        if response and response.strip() and not no_store:
+            self.store(prompt_repr, response, model=model, **kwargs)
         return {
             "response": response,
             "cache_hit": False,
+            "confidence": 0.0,
             "optimized_messages": optimized,
         }
 
-    def feedback(self, prompt: str, was_correct: bool) -> None:
+    def feedback(
+        self,
+        prompt: str,
+        was_correct: bool,
+        model: str = "",
+        invalidate: bool = False,
+        **scope: Any,
+    ) -> None:
         emb = self.embedding.embed(prompt)
         self._adaptive.record_outcome(emb, was_correct)
         if not was_correct:
             self.metrics.record_threshold_reject()
+            if invalidate:
+                self.invalidate(prompt=prompt, model=model, **scope)
 
     def clear(self) -> None:
         self.storage.clear()

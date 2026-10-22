@@ -37,6 +37,9 @@ class CacheConfig:
     static_prefix_min_tokens: int = 256
 
     min_similarity_for_hit: float = 0.45
+    # Default off: preserves today's accept rules. Raise toward 0.8 to demote
+    # weak semantic neighbors to misses (see core/lookup.py confidence).
+    min_confidence: float = 0.0
     error_rate_target: float = 0.03
     # Require best semantic score to beat 2nd-best by this margin (safer hits)
     semantic_score_margin: float = 0.02
@@ -67,3 +70,5 @@ class CacheConfig:
             raise ValueError("max_cache_entries must be >= 1")
         if self.semantic_score_margin < 0:
             raise ValueError("semantic_score_margin must be >= 0")
+        if not 0.0 <= self.min_confidence <= 1.0:
+            raise ValueError("min_confidence must be in [0, 1]")

@@ -20,6 +20,7 @@ from urllib.request import Request
 
 from infercache.config import CacheConfig
 from infercache.core import InferCache
+from infercache.core.scope import sampling_scope
 from infercache.http import urlopen
 from infercache.optimization.tokens import estimate_tokens
 
@@ -58,34 +59,6 @@ def _messages_cache_repr(body: dict[str, Any]) -> str:
         "tools": body.get("tools"),
     }
     return json.dumps(key_fields, sort_keys=True, separators=(",", ":"))
-
-
-# Sampling params change the answer as much as the messages do, but they are
-# kept out of the semantic text: a temperature=0 request must never match a
-# cached temperature=1 answer, not even as a "similar" one. They ride along
-# as an exact-match scope instead.
-_SAMPLING_FIELDS = (
-    "temperature",
-    "top_p",
-    "top_k",
-    "max_tokens",
-    "max_completion_tokens",
-    "seed",
-    "stop",
-    "stop_sequences",
-    "n",
-    "response_format",
-    "frequency_penalty",
-    "presence_penalty",
-    "tool_choice",
-)
-
-
-def _params_fingerprint(body: dict[str, Any]) -> str:
-    params = {k: body[k] for k in _SAMPLING_FIELDS if k in body}
-    if not params:
-        return ""
-    return json.dumps(params, sort_keys=True, separators=(",", ":"))
 
 
 def _extract_openai_text(response: dict[str, Any]) -> str:
@@ -294,6 +267,16 @@ def make_handler(state: _GatewayState):
                     with state.lock:
                         state.cache.clear()
                     self._send_json({"cleared": True})
+                elif self.path == "/cache/invalidate":
+                    body = self._read_body()
+                    with state.lock:
+                        removed = state.cache.invalidate(
+                            key=body.get("key"),
+                            prompt=body.get("prompt"),
+                            model=body.get("model", ""),
+                            tag=body.get("tag"),
+                        )
+                    self._send_json({"invalidated": removed})
                 else:
                     self._send_json({"error": f"unsupported path {self.path}"}, status=404)
             except RuntimeError as exc:
@@ -307,17 +290,22 @@ def make_handler(state: _GatewayState):
             stream = bool(body.get("stream"))
             cache_repr = _messages_cache_repr(body)
             user = self._user_scope()
-            params = _params_fingerprint(body)
+            scope = sampling_scope(body)
 
             with state.lock:
-                cached = state.cache.lookup(cache_repr, model=model, optimize=False, user=user, params=params)
+                cached = state.cache.lookup(
+                    cache_repr, model=model, optimize=False, user=user, **scope
+                )
 
             if cached.get("cache_hit"):
                 text = cached["response"]
                 if stream:
                     self._send_sse(_sse_chunks_openai(model, text))
                 else:
-                    self._send_json(_openai_response(model, text, cached=True))
+                    payload = _openai_response(model, text, cached=True)
+                    payload["infercache"]["confidence"] = cached.get("confidence", 1.0)
+                    payload["infercache"]["cache_type"] = cached.get("cache_type")
+                    self._send_json(payload)
                 return
 
             upstream_url = f"{state.config.openai_upstream.rstrip('/')}/v1/chat/completions"
@@ -329,7 +317,7 @@ def make_handler(state: _GatewayState):
                 with state.lock:
                     state.cache.metrics.record_miss(estimate_tokens(cache_repr) + estimate_tokens(text))
                     if text.strip():
-                        state.cache.store(cache_repr, text, model=model, user=user, params=params)
+                        state.cache.store(cache_repr, text, model=model, user=user, **scope)
                 return
 
             upstream = self._call_upstream(upstream_url, body)
@@ -337,7 +325,7 @@ def make_handler(state: _GatewayState):
             with state.lock:
                 state.cache.metrics.record_miss(estimate_tokens(cache_repr) + estimate_tokens(text))
                 if text.strip():
-                    state.cache.store(cache_repr, text, model=model, user=user, params=params)
+                    state.cache.store(cache_repr, text, model=model, user=user, **scope)
             upstream.setdefault("infercache", {})["cache_hit"] = False
             self._send_json(upstream)
 
@@ -346,13 +334,18 @@ def make_handler(state: _GatewayState):
             model = body.get("model", "")
             cache_repr = _messages_cache_repr(body)
             user = self._user_scope()
-            params = _params_fingerprint(body)
+            scope = sampling_scope(body)
 
             with state.lock:
-                cached = state.cache.lookup(cache_repr, model=model, optimize=False, user=user, params=params)
+                cached = state.cache.lookup(
+                    cache_repr, model=model, optimize=False, user=user, **scope
+                )
 
             if cached.get("cache_hit"):
-                self._send_json(_anthropic_response(model, cached["response"], cached=True))
+                payload = _anthropic_response(model, cached["response"], cached=True)
+                payload["infercache"]["confidence"] = cached.get("confidence", 1.0)
+                payload["infercache"]["cache_type"] = cached.get("cache_type")
+                self._send_json(payload)
                 return
 
             upstream_url = f"{state.config.anthropic_upstream.rstrip('/')}/v1/messages"
@@ -361,7 +354,7 @@ def make_handler(state: _GatewayState):
             with state.lock:
                 state.cache.metrics.record_miss(estimate_tokens(cache_repr) + estimate_tokens(text))
                 if text.strip():
-                    state.cache.store(cache_repr, text, model=model, user=user, params=params)
+                    state.cache.store(cache_repr, text, model=model, user=user, **scope)
             upstream.setdefault("infercache", {})["cache_hit"] = False
             self._send_json(upstream)
 

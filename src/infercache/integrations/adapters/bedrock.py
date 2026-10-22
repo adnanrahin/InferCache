@@ -110,7 +110,9 @@ class BedrockAdapter(BaseAdapter):
         def call(msgs: list[dict[str, Any]]) -> str:
             return self._invoke(msgs, model, **kwargs)
 
-        result = self.cache.get_or_call_messages(messages, call, model=model)
+        result = self.cache.get_or_call_messages(
+            messages, call, model=model, **self.cache_scope(kwargs)
+        )
         result["provider"] = "bedrock"
         return result
 
@@ -125,6 +127,6 @@ class BedrockAdapter(BaseAdapter):
         def call(p: str) -> str:
             return self._invoke([{"role": "user", "content": p}], model, **kwargs)
 
-        result = self.cache.get_or_call(prompt, call, model=model)
+        result = self.cache.get_or_call(prompt, call, model=model, **self.cache_scope(kwargs))
         result["provider"] = "bedrock"
         return result

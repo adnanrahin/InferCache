@@ -65,15 +65,38 @@ TOOLS: list[dict[str, Any]] = [
         "name": "cache_feedback",
         "description": (
             "Report whether a cached answer was correct for a prompt. Tunes the "
-            "adaptive similarity thresholds (reduces future false hits)."
+            "adaptive similarity thresholds (reduces future false hits). Set "
+            "invalidate=true to also delete the wrong entry."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "prompt": {"type": "string"},
                 "was_correct": {"type": "boolean"},
+                "model": {"type": "string", "default": ""},
+                "invalidate": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Delete the entry when was_correct is false",
+                },
             },
             "required": ["prompt", "was_correct"],
+        },
+    },
+    {
+        "name": "cache_invalidate",
+        "description": (
+            "Delete cache entries by exact prompt, key, or tag. Use after an "
+            "answer goes stale (docs changed, bug fixed) without clearing everything."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "prompt": {"type": "string", "description": "Exact prompt whose entry to delete"},
+                "key": {"type": "string", "description": "Exact cache key to delete"},
+                "tag": {"type": "string", "description": "Delete every entry carrying this tag"},
+                "model": {"type": "string", "default": ""},
+            },
         },
     },
     {
@@ -142,6 +165,8 @@ class McpServer:
             payload = self.cache.stats()
         elif name == "cache_feedback":
             payload = self._tool_feedback(args)
+        elif name == "cache_invalidate":
+            payload = self._tool_invalidate(args)
         elif name == "cache_clear":
             self.cache.clear()
             payload = {"cleared": True}
@@ -161,6 +186,8 @@ class McpServer:
         return {
             "cache_hit": result.get("cache_hit", False),
             "cache_type": result.get("cache_type"),
+            "confidence": result.get("confidence", 0.0),
+            "payload_kind": result.get("payload_kind"),
             "response": result.get("response"),
         }
 
@@ -169,8 +196,22 @@ class McpServer:
         return {"stored": True}
 
     def _tool_feedback(self, args: dict[str, Any]) -> dict[str, Any]:
-        self.cache.feedback(args["prompt"], bool(args["was_correct"]))
+        self.cache.feedback(
+            args["prompt"],
+            bool(args["was_correct"]),
+            model=args.get("model", ""),
+            invalidate=bool(args.get("invalidate", False)),
+        )
         return {"recorded": True}
+
+    def _tool_invalidate(self, args: dict[str, Any]) -> dict[str, Any]:
+        removed = self.cache.invalidate(
+            key=args.get("key"),
+            prompt=args.get("prompt"),
+            model=args.get("model", ""),
+            tag=args.get("tag"),
+        )
+        return {"invalidated": removed}
 
 
 def run_stdio_server(cache: InferCache | None = None) -> None:

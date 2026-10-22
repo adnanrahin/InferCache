@@ -43,6 +43,8 @@ class CacheStore:
         emb = self.embedding.embed(optimized_prompt)
         # kwargs scope the exact key, so they must scope semantic matches too
         meta = {"model": model, **kwargs, **(metadata or {})}
+        if prompt != optimized_prompt:
+            meta.setdefault("source_prompt", prompt)
         entry = CacheEntry(
             key=key,
             prompt=optimized_prompt,

@@ -9,7 +9,7 @@ from typing import Any
 try:
     import numpy as _np
 except ImportError:
-    _np = None
+    _np = None  # type: ignore[assignment]
 
 try:
     import faiss as _faiss

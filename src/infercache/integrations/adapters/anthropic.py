@@ -58,6 +58,8 @@ class AnthropicAdapter(BaseAdapter):
             resp = client.messages.create(model=model, messages=non_system, **kwargs_copy)
             return "".join(getattr(b, "text", str(b)) for b in resp.content)
 
-        result = self.cache.get_or_call_messages(messages, call, model=model)
+        result = self.cache.get_or_call_messages(
+            messages, call, model=model, **self.cache_scope(kwargs)
+        )
         result["provider"] = "anthropic"
         return result

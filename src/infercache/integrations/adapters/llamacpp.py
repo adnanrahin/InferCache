@@ -120,7 +120,9 @@ class LlamaCppAdapter(BaseAdapter):
         def call(msgs: list[dict[str, Any]]) -> str:
             return self._chat_uncached(msgs, model, **kwargs)
 
-        result = self.cache.get_or_call_messages(messages, call, model=model)
+        result = self.cache.get_or_call_messages(
+            messages, call, model=model, **self.cache_scope(kwargs)
+        )
         result["provider"] = "llamacpp"
         return result
 
@@ -135,7 +137,7 @@ class LlamaCppAdapter(BaseAdapter):
         def call(p: str) -> str:
             return self._generate_uncached(p, model, **kwargs)
 
-        result = self.cache.get_or_call(prompt, call, model=model)
+        result = self.cache.get_or_call(prompt, call, model=model, **self.cache_scope(kwargs))
         result["provider"] = "llamacpp"
         return result
 
